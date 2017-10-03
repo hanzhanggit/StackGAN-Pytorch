@@ -1,0 +1,30 @@
+CONFIG_NAME: 'stageII'
+
+DATASET_NAME: 'coco'
+EMBEDDING_TYPE: 'cnn-rnn'
+GPU_ID: '0,1'
+Z_DIM: 100
+STAGE1_G: '../output/coco_stageI/Model/netG_epoch_120.pth'
+DATA_DIR: '../data/coco'
+WORKERS: 4
+IMSIZE: 256
+STAGE: 2
+TRAIN:
+    FLAG: True
+    BATCH_SIZE: 40
+    MAX_EPOCH: 100
+    LR_DECAY_EPOCH: 20
+    SNAPSHOT_INTERVAL: 5
+    DISCRIMINATOR_LR: 0.0002
+    GENERATOR_LR: 0.0002
+    COEFF:
+      KL: 2.0
+
+GAN:
+    CONDITION_DIM: 128
+    DF_DIM: 96
+    GF_DIM: 192
+    R_NUM: 2
+
+TEXT:
+    DIMENSION: 1024

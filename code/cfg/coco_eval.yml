@@ -1,0 +1,23 @@
+CONFIG_NAME: 'stageII'
+
+DATASET_NAME: 'coco'
+EMBEDDING_TYPE: 'cnn-rnn'
+GPU_ID: '0,1'
+Z_DIM: 100
+NET_G: '../models/coco/netG_epoch_90.pth'
+DATA_DIR: '../data/coco'
+WORKERS: 4
+IMSIZE: 256
+STAGE: 2
+TRAIN:
+    FLAG: False
+    BATCH_SIZE: 40
+
+GAN:
+    CONDITION_DIM: 128
+    DF_DIM: 96
+    GF_DIM: 192
+    R_NUM: 2
+
+TEXT:
+    DIMENSION: 1024
