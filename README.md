@@ -1,7 +1,7 @@
 # StackGAN-pytorch
 - [Tensorflow implementation](https://github.com/hanzhanggit/StackGAN)
 
-- [inception score evaluation](https://github.com/hanzhanggit/StackGAN-inception-model)
+- [Inception score evaluation](https://github.com/hanzhanggit/StackGAN-inception-model)
 
 - [StackGAN_v2-pytorch](https://github.com/hanzhanggit/StackGAN_v2)
 
