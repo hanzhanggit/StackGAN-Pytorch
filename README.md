@@ -43,6 +43,7 @@ In addition, please add the project folder to PYTHONPATH and `pip install` the f
 
 **Pretrained Model**
 - [StackGAN for coco](https://drive.google.com/open?id=0B3y_msrWZaXLYjNra2ZSSmtVQlE). Download and save it to `models/coco`.
+- **Our current implementation has a higher inception score(10.62±0.19) than reported in the StackGAN paper**
 
 
 
