@@ -1,27 +1,23 @@
 from __future__ import print_function
 from six.moves import range
-from PIL import Image
 
-import torch.backends.cudnn as cudnn
-import torch
-import torch.nn as nn
-from torch.autograd import Variable
-import torch.optim as optim
 import os
 import time
 
 import numpy as np
+from PIL import Image
+from tensorboard import summary
+from tensorboard import FileWriter
+import torch
+from torch.autograd import Variable
+import torch.backends.cudnn as cudnn
+import torch.nn as nn
+import torch.optim as optim
 import torchfile
 
 from miscc.config import cfg
-from miscc.utils import mkdir_p
-from miscc.utils import weights_init
-from miscc.utils import save_img_results, save_model
-from miscc.utils import KL_loss
-from miscc.utils import compute_discriminator_loss, compute_generator_loss
-
-from tensorboard import summary
-from tensorboard import FileWriter
+from miscc.utils import compute_discriminator_loss, compute_generator_loss, KL_loss, mkdir_p, \
+    save_img_results, save_model, weights_init
 
 
 class GANTrainer(object):
@@ -56,15 +52,13 @@ class GANTrainer(object):
         print(netD)
 
         if cfg.NET_G != '':
-            state_dict = \
-                torch.load(cfg.NET_G,
-                           map_location=lambda storage, loc: storage)
+            state_dict = torch.load(cfg.NET_G,
+                                    map_location=lambda storage, loc: storage)
             netG.load_state_dict(state_dict)
             print('Load from: ', cfg.NET_G)
         if cfg.NET_D != '':
-            state_dict = \
-                torch.load(cfg.NET_D,
-                           map_location=lambda storage, loc: storage)
+            state_dict = torch.load(cfg.NET_D,
+                                    map_location=lambda storage, loc: storage)
             netD.load_state_dict(state_dict)
             print('Load from: ', cfg.NET_D)
         if cfg.CUDA:
@@ -214,7 +208,7 @@ class GANTrainer(object):
                     lr_fake, fake, _, _ = \
                         nn.parallel.data_parallel(netG, inputs, self.gpus)
                     save_img_results(real_img_cpu, fake, epoch, self.image_dir)
-                    if lr_fake is not None:
+                    if lr_fake:
                         save_img_results(None, lr_fake, epoch, self.image_dir)
             end_t = time.time()
             print('''[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f Loss_KL: %.4f
@@ -226,9 +220,9 @@ class GANTrainer(object):
                      errD_real, errD_wrong, errD_fake, (end_t - start_t)))
             if epoch % self.snapshot_interval == 0:
                 save_model(netG, netD, epoch, self.model_dir)
-        #
+
         save_model(netG, netD, self.max_epoch, self.model_dir)
-        #
+
         self.summary_writer.close()
 
     def sample(self, datapath, stage=1):
@@ -287,4 +281,3 @@ class GANTrainer(object):
                 im = Image.fromarray(im)
                 im.save(save_name)
             count += batch_size
-

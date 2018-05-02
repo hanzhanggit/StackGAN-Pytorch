@@ -1,14 +1,11 @@
 import os
 import errno
-import numpy as np
 
-from copy import deepcopy
-from miscc.config import cfg
-
-from torch.nn import init
 import torch
 import torch.nn as nn
 import torchvision.utils as vutils
+
+from miscc.config import cfg
 
 
 #############################
@@ -33,22 +30,19 @@ def compute_discriminator_loss(netD, real_imgs, fake_imgs,
     real_logits = nn.parallel.data_parallel(netD.get_cond_logits, inputs, gpus)
     errD_real = criterion(real_logits, real_labels)
     # wrong pairs
-    inputs = (real_features[:(batch_size-1)], cond[1:])
-    wrong_logits = \
-        nn.parallel.data_parallel(netD.get_cond_logits, inputs, gpus)
+    inputs = (real_features[:(batch_size - 1)], cond[1:])
+    wrong_logits = nn.parallel.data_parallel(netD.get_cond_logits, inputs, gpus)
     errD_wrong = criterion(wrong_logits, fake_labels[1:])
     # fake pairs
     inputs = (fake_features, cond)
     fake_logits = nn.parallel.data_parallel(netD.get_cond_logits, inputs, gpus)
     errD_fake = criterion(fake_logits, fake_labels)
 
-    if netD.get_uncond_logits is not None:
-        real_logits = \
-            nn.parallel.data_parallel(netD.get_uncond_logits,
-                                      (real_features), gpus)
-        fake_logits = \
-            nn.parallel.data_parallel(netD.get_uncond_logits,
-                                      (fake_features), gpus)
+    if netD.get_uncond_logits:
+        real_logits = nn.parallel.data_parallel(netD.get_uncond_logits,
+                                                (real_features), gpus)
+        fake_logits = nn.parallel.data_parallel(netD.get_uncond_logits,
+                                                (fake_features), gpus)
         uncond_errD_real = criterion(real_logits, real_labels)
         uncond_errD_fake = criterion(fake_logits, fake_labels)
         #
@@ -69,10 +63,9 @@ def compute_generator_loss(netD, fake_imgs, real_labels, conditions, gpus):
     inputs = (fake_features, cond)
     fake_logits = nn.parallel.data_parallel(netD.get_cond_logits, inputs, gpus)
     errD_fake = criterion(fake_logits, real_labels)
-    if netD.get_uncond_logits is not None:
-        fake_logits = \
-            nn.parallel.data_parallel(netD.get_uncond_logits,
-                                      (fake_features), gpus)
+    if netD.get_uncond_logits:
+        fake_logits = nn.parallel.data_parallel(netD.get_uncond_logits,
+                                                (fake_features), gpus)
         uncond_errD_fake = criterion(fake_logits, real_labels)
         errD_fake += uncond_errD_fake
     return errD_fake
@@ -97,7 +90,7 @@ def save_img_results(data_img, fake, epoch, image_dir):
     num = cfg.VIS_COUNT
     fake = fake[0:num]
     # data_img is changed to [0,1]
-    if data_img is not None:
+    if data_img:
         data_img = data_img[0:num]
         vutils.save_image(
             data_img, '%s/real_samples.png' % image_dir,
@@ -105,11 +98,11 @@ def save_img_results(data_img, fake, epoch, image_dir):
         # fake.data is still [-1, 1]
         vutils.save_image(
             fake.data, '%s/fake_samples_epoch_%03d.png' %
-            (image_dir, epoch), normalize=True)
+                       (image_dir, epoch), normalize=True)
     else:
         vutils.save_image(
             fake.data, '%s/lr_fake_samples_epoch_%03d.png' %
-            (image_dir, epoch), normalize=True)
+                       (image_dir, epoch), normalize=True)
 
 
 def save_model(netG, netD, epoch, model_dir):

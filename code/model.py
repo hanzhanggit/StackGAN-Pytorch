@@ -91,7 +91,7 @@ class D_GET_LOGITS(nn.Module):
 
     def forward(self, h_code, c_code=None):
         # conditioning output
-        if self.bcondition and c_code is not None:
+        if self.bcondition and c_code:
             c_code = c_code.view(-1, self.ef_dim, 1, 1)
             c_code = c_code.repeat(1, 1, 4, 4)
             # state size (ngf+egf) x 4 x 4

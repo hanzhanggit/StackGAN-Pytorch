@@ -1,10 +1,8 @@
 from __future__ import division
 from __future__ import print_function
 
-import os.path as osp
 import numpy as np
 from easydict import EasyDict as edict
-
 
 __C = edict()
 cfg = __C
@@ -26,7 +24,6 @@ __C.VIS_COUNT = 64
 __C.Z_DIM = 100
 __C.IMSIZE = 64
 __C.STAGE = 1
-
 
 # Training options
 __C.TRAIN = edict()
