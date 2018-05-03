@@ -2,4 +2,5 @@ tensorboard
 python-dateutil
 easydict
 pandas
+tensorflow
 torchfile
