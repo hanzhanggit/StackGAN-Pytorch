@@ -7,7 +7,7 @@ import time
 import numpy as np
 from PIL import Image
 from tensorboard import summary
-from tensorboard import FileWriter
+import tensorflow as tf
 import torch
 from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
@@ -29,7 +29,7 @@ class GANTrainer(object):
             mkdir_p(self.model_dir)
             mkdir_p(self.image_dir)
             mkdir_p(self.log_dir)
-            self.summary_writer = FileWriter(self.log_dir)
+            self.summary_writer = tf.summary.FileWriter(self.log_dir)
 
         self.max_epoch = cfg.TRAIN.MAX_EPOCH
         self.snapshot_interval = cfg.TRAIN.SNAPSHOT_INTERVAL
