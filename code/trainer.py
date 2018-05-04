@@ -38,7 +38,7 @@ class GANTrainer(object):
         self.gpus = [int(ix) for ix in s_gpus]
         self.num_gpus = len(self.gpus)
         self.batch_size = cfg.TRAIN.BATCH_SIZE * self.num_gpus
-        torch.cuda.set_device(self.gpus[0])
+        torch.cuda.set_device(self.gpus[0])  # Question1: why only the first GPU?
         cudnn.benchmark = True
 
     # ############# For training stageI GAN #############
@@ -74,27 +74,19 @@ class GANTrainer(object):
         netG = STAGE2_G(Stage1_G)
         netG.apply(weights_init)
         print(netG)
-        if cfg.NET_G != '':
-            state_dict = \
-                torch.load(cfg.NET_G,
+        if cfg.NET_G or cfg.STAGE1_G:
+            state_dict = torch.load(cfg.NET_G or cfg.STAGE1_G,
                            map_location=lambda storage, loc: storage)
-            netG.load_state_dict(state_dict)
-            print('Load from: ', cfg.NET_G)
-        elif cfg.STAGE1_G != '':
-            state_dict = \
-                torch.load(cfg.STAGE1_G,
-                           map_location=lambda storage, loc: storage)
-            netG.STAGE1_G.load_state_dict(state_dict)
-            print('Load from: ', cfg.STAGE1_G)
+            netG.load_state_dict(state_dict or cfg.STAGE1_G)
+            print('Load from: ', cfg.NET_G or cfg.STAGE1_G)
         else:
             print("Please give the Stage1_G path")
             return
 
         netD = STAGE2_D()
         netD.apply(weights_init)
-        if cfg.NET_D != '':
-            state_dict = \
-                torch.load(cfg.NET_D,
+        if cfg.NET_D:
+            state_dict = torch.load(cfg.NET_D,
                            map_location=lambda storage, loc: storage)
             netD.load_state_dict(state_dict)
             print('Load from: ', cfg.NET_D)

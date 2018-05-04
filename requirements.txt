@@ -4,3 +4,5 @@ easydict
 pandas
 tensorflow
 torchfile
+torch
+yaml

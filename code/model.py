@@ -11,7 +11,7 @@ def conv3x3(in_planes, out_planes, stride=1):
                      padding=1, bias=False)
 
 
-# Upsale the spatial size by a factor of 2
+# Upscale the spatial size by a factor of 2
 def upBlock(in_planes, out_planes):
     block = nn.Sequential(
         nn.Upsample(scale_factor=2, mode='nearest'),
@@ -91,7 +91,7 @@ class D_GET_LOGITS(nn.Module):
 
     def forward(self, h_code, c_code=None):
         # conditioning output
-        if self.bcondition and c_code:
+        if self.bcondition and c_code is not None:
             c_code = c_code.view(-1, self.ef_dim, 1, 1)
             c_code = c_code.repeat(1, 1, 4, 4)
             # state size (ngf+egf) x 4 x 4
@@ -107,9 +107,9 @@ class D_GET_LOGITS(nn.Module):
 class STAGE1_G(nn.Module):
     def __init__(self):
         super(STAGE1_G, self).__init__()
-        self.gf_dim = cfg.GAN.GF_DIM * 8
-        self.ef_dim = cfg.GAN.CONDITION_DIM
-        self.z_dim = cfg.Z_DIM
+        self.gf_dim = cfg.GAN.GF_DIM * 8  # 128 * 8
+        self.ef_dim = cfg.GAN.CONDITION_DIM  # 128
+        self.z_dim = cfg.Z_DIM  # 100
         self.define_module()
 
     def define_module(self):
