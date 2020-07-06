@@ -4,3 +4,5 @@ code/miscc/*.pyc
 backup
 .DS_Store
 .idea/
+**/__pycache__/**
+data/coco/**

@@ -5,7 +5,6 @@ from PIL import Image
 import torch.backends.cudnn as cudnn
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 import torch.optim as optim
 import os
 import time
@@ -20,8 +19,8 @@ from miscc.utils import save_img_results, save_model
 from miscc.utils import KL_loss
 from miscc.utils import compute_discriminator_loss, compute_generator_loss
 
-from tensorboard import summary
-from tensorboard import FileWriter
+from torch.utils.tensorboard import summary
+from torch.utils.tensorboard import FileWriter
 
 
 class GANTrainer(object):
@@ -119,12 +118,11 @@ class GANTrainer(object):
 
         nz = cfg.Z_DIM
         batch_size = self.batch_size
-        noise = Variable(torch.FloatTensor(batch_size, nz))
+        noise = torch.FloatTensor(batch_size, nz)
         fixed_noise = \
-            Variable(torch.FloatTensor(batch_size, nz).normal_(0, 1),
-                     volatile=True)
-        real_labels = Variable(torch.FloatTensor(batch_size).fill_(1))
-        fake_labels = Variable(torch.FloatTensor(batch_size).fill_(0))
+            torch.FloatTensor(batch_size, nz).normal_(0, 1)
+        real_labels = torch.FloatTensor(batch_size).fill_(1)
+        fake_labels = torch.FloatTensor(batch_size).fill_(0)
         if cfg.CUDA:
             noise, fixed_noise = noise.cuda(), fixed_noise.cuda()
             real_labels, fake_labels = real_labels.cuda(), fake_labels.cuda()
@@ -153,13 +151,15 @@ class GANTrainer(object):
                 for param_group in optimizerD.param_groups:
                     param_group['lr'] = discriminator_lr
 
+            n = len(data_loader.dataset)
+            print('Training epoch: %d' % epoch)
             for i, data in enumerate(data_loader, 0):
                 ######################################################
                 # (1) Prepare training data
                 ######################################################
                 real_img_cpu, txt_embedding = data
-                real_imgs = Variable(real_img_cpu)
-                txt_embedding = Variable(txt_embedding)
+                real_imgs = real_img_cpu
+                txt_embedding = txt_embedding
                 if cfg.CUDA:
                     real_imgs = real_imgs.cuda()
                     txt_embedding = txt_embedding.cuda()
@@ -194,13 +194,16 @@ class GANTrainer(object):
                 optimizerG.step()
 
                 count = count + 1
+
+                completed = int(i*self.batch_size*100/n)
+                print('['+'='*completed + '>' + '-'*(99-completed) + '] ' + str(completed) + '%', end='\r')
                 if i % 100 == 0:
-                    summary_D = summary.scalar('D_loss', errD.data[0])
+                    summary_D = summary.scalar('D_loss', errD.data)
                     summary_D_r = summary.scalar('D_loss_real', errD_real)
                     summary_D_w = summary.scalar('D_loss_wrong', errD_wrong)
                     summary_D_f = summary.scalar('D_loss_fake', errD_fake)
-                    summary_G = summary.scalar('G_loss', errG.data[0])
-                    summary_KL = summary.scalar('KL_loss', kl_loss.data[0])
+                    summary_G = summary.scalar('G_loss', errG.data)
+                    summary_KL = summary.scalar('KL_loss', kl_loss.data)
 
                     self.summary_writer.add_summary(summary_D, count)
                     self.summary_writer.add_summary(summary_D_r, count)
@@ -216,13 +219,14 @@ class GANTrainer(object):
                     save_img_results(real_img_cpu, fake, epoch, self.image_dir)
                     if lr_fake is not None:
                         save_img_results(None, lr_fake, epoch, self.image_dir)
+            print('['+'='*99+'>] 100%')
             end_t = time.time()
             print('''[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f Loss_KL: %.4f
                      Loss_real: %.4f Loss_wrong:%.4f Loss_fake %.4f
                      Total Time: %.2fsec
                   '''
                   % (epoch, self.max_epoch, i, len(data_loader),
-                     errD.data[0], errG.data[0], kl_loss.data[0],
+                     errD.data, errG.data, kl_loss.data,
                      errD_real, errD_wrong, errD_fake, (end_t - start_t)))
             if epoch % self.snapshot_interval == 0:
                 save_model(netG, netD, epoch, self.model_dir)
@@ -252,7 +256,7 @@ class GANTrainer(object):
 
         batch_size = np.minimum(num_embeddings, self.batch_size)
         nz = cfg.Z_DIM
-        noise = Variable(torch.FloatTensor(batch_size, nz))
+        noise = torch.FloatTensor(batch_size, nz)
         if cfg.CUDA:
             noise = noise.cuda()
         count = 0
@@ -265,7 +269,7 @@ class GANTrainer(object):
                 count = num_embeddings - batch_size
             embeddings_batch = embeddings[count:iend]
             # captions_batch = captions_list[count:iend]
-            txt_embedding = Variable(torch.FloatTensor(embeddings_batch))
+            txt_embedding = torch.FloatTensor(embeddings_batch)
             if cfg.CUDA:
                 txt_embedding = txt_embedding.cuda()
 
