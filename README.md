@@ -13,7 +13,7 @@ Pytorch implementation for reproducing COCO results in the paper [StackGAN: Text
 
 
 ### Dependencies
-python 2.7 or higher
+Python 2.7 or Python 3.8
 
 Base Deeplearning Framework: `Pytorch`
 

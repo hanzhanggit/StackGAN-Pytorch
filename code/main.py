@@ -12,13 +12,11 @@ import datetime
 import dateutil
 import dateutil.tz
 
-
 dir_path = (os.path.abspath(os.path.join(os.path.realpath(__file__), './.')))
 sys.path.append(dir_path)
 
 from miscc.datasets import TextDataset
 from miscc.config import cfg, cfg_from_file
-from miscc.utils import mkdir_p
 from trainer import GANTrainer
 
 
@@ -26,12 +24,13 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Train a GAN network')
     parser.add_argument('--cfg', dest='cfg_file',
                         help='optional config file',
-                        default='birds_stage1.yml', type=str)
-    parser.add_argument('--gpu',  dest='gpu_id', type=str, default='0')
+                        default='cfg/coco_s1.yml', type=str)
+    parser.add_argument('--gpu', dest='gpu_id', type=str, default='0')
     parser.add_argument('--data_dir', dest='data_dir', type=str, default='')
-    parser.add_argument('--manualSeed', type=int, help='manual seed')
+    parser.add_argument('--manualSeed', type=int, help='manual seed', default=47)
     args = parser.parse_args()
     return args
+
 
 if __name__ == "__main__":
     args = parse_args()
@@ -72,6 +71,6 @@ if __name__ == "__main__":
         algo = GANTrainer(output_dir)
         algo.train(dataloader, cfg.STAGE)
     else:
-        datapath= '%s/test/val_captions.t7' % (cfg.DATA_DIR)
+        datapath = '%s/test/val_captions.t7' % cfg.DATA_DIR
         algo = GANTrainer(output_dir)
         algo.sample(datapath, cfg.STAGE)
