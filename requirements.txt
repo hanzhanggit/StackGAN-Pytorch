@@ -1,0 +1,6 @@
+tensorboard==2.13.0
+tensorboardX==2.6
+python-dateutil
+easydict==1.10
+pandas==1.5.1
+torchfile==0.1.0

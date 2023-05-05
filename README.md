@@ -1,4 +1,6 @@
 # StackGAN-pytorch
+Original Repository [hanzhanggit/StackGAN-Pytorch](https://github.com/hanzhanggit/StackGAN-Pytorch)
+
 - [Tensorflow implementation](https://github.com/hanzhanggit/StackGAN)
 
 - [Inception score evaluation](https://github.com/hanzhanggit/StackGAN-inception-model)
@@ -11,16 +13,19 @@ Pytorch implementation for reproducing COCO results in the paper [StackGAN: Text
 
 
 ### Dependencies
-python 2.7
+python 2.7 or higher
 
-Pytorch
+Base Deeplearning Framework: `Pytorch`
 
 In addition, please add the project folder to PYTHONPATH and `pip install` the following packages:
 - `tensorboard`
+- `tensorboardX`
 - `python-dateutil`
 - `easydict`
 - `pandas`
 - `torchfile`
+
+**Or** use the following command `pip install -r requirements.txt`
 
 
 

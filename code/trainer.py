@@ -21,7 +21,7 @@ from miscc.utils import KL_loss
 from miscc.utils import compute_discriminator_loss, compute_generator_loss
 
 from tensorboard import summary
-from tensorboard import FileWriter
+from tensorboardX import FileWriter
 
 
 class GANTrainer(object):
