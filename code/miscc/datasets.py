@@ -3,7 +3,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-
 import torch.utils.data as data
 from PIL import Image
 import PIL
@@ -102,8 +101,17 @@ class TextDataset(data.Dataset):
             embedding_filename = '/char-CNN-GRU-embeddings.pickle'
         elif embedding_type == 'skip-thought':
             embedding_filename = '/skip-thought-embeddings.pickle'
+        elif os.path.exists(os.path.join(data_dir, embedding_type)):
+            # embeddings are provided as files
+            embedding_filename = embedding_type
+        else:
+            raise ValueError("No embedding files was found")
 
-        with open(data_dir + embedding_filename, 'rb') as f:
+        # > https://github.com/reedscot/icml2016
+        # > https://github.com/reedscot/cvpr2016
+        # > https://arxiv.org/pdf/1605.05395.pdf
+
+        with open(os.path.join(data_dir, embedding_filename), 'rb') as f:
             embeddings = pickle.load(f)
             embeddings = np.array(embeddings)
             # embedding_shape = [embeddings.shape[-1]]
@@ -141,7 +149,7 @@ class TextDataset(data.Dataset):
         img_name = '%s/images/%s.jpg' % (data_dir, key)
         img = self.get_img(img_name, bbox)
 
-        embedding_ix = random.randint(0, embeddings.shape[0]-1)
+        embedding_ix = random.randint(0, embeddings.shape[0] - 1)
         embedding = embeddings[embedding_ix, :]
         if self.target_transform is not None:
             embedding = self.target_transform(embedding)

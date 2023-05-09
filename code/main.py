@@ -55,11 +55,13 @@ if __name__ == "__main__":
 
     num_gpu = len(cfg.GPU_ID.split(','))
     if cfg.TRAIN.FLAG:
+        # prepare image transforms
         image_transform = transforms.Compose([
             transforms.RandomCrop(cfg.IMSIZE),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+        # prepare Text caption
         dataset = TextDataset(cfg.DATA_DIR, 'train',
                               imsize=cfg.IMSIZE,
                               transform=image_transform)
