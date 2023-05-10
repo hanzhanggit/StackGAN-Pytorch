@@ -33,7 +33,7 @@ class TextDataset(data.Dataset):
 
         self.filenames = self.load_filenames(split_dir)
         self.embeddings = self.load_embedding(split_dir, embedding_type)
-        self.class_id = self.load_class_id(split_dir, len(self.filenames))
+        # self.class_id = self.load_class_id(split_dir, len(self.filenames))
         # self.captions = self.load_all_captions()
 
     def get_img(self, img_path, bbox):

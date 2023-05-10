@@ -64,6 +64,7 @@ if __name__ == "__main__":
         # prepare Text caption
         dataset = TextDataset(cfg.DATA_DIR, 'train',
                               imsize=cfg.IMSIZE,
+                              embedding_type=cfg.EMBEDDING_TYPE,
                               transform=image_transform)
         assert dataset
         dataloader = torch.utils.data.DataLoader(

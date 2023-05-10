@@ -1,0 +1,28 @@
+CONFIG_NAME: 'stageI'
+
+DATASET_NAME: 'coco'
+EMBEDDING_TYPE: 'embeddings_cc.en.300.bin_100.pickle'
+GPU_ID: '0,1'
+Z_DIM: 100
+DATA_DIR: '../data/sixray_sample'
+IMSIZE: 64
+WORKERS: 4
+STAGE: 1
+TRAIN:
+    FLAG: True
+    BATCH_SIZE: 128
+    MAX_EPOCH: 120
+    LR_DECAY_EPOCH: 20
+    SNAPSHOT_INTERVAL: 10
+    DISCRIMINATOR_LR: 0.0002
+    GENERATOR_LR: 0.0002
+    COEFF:
+      KL: 2.0
+
+GAN:
+    CONDITION_DIM: 128
+    DF_DIM: 96
+    GF_DIM: 192
+
+TEXT:
+    DIMENSION: 1024
