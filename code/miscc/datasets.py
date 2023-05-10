@@ -101,7 +101,7 @@ class TextDataset(data.Dataset):
             embedding_filename = '/char-CNN-GRU-embeddings.pickle'
         elif embedding_type == 'skip-thought':
             embedding_filename = '/skip-thought-embeddings.pickle'
-        elif os.path.exists(os.path.join(data_dir, embedding_type)):
+        elif os.path.isfile(os.path.join(data_dir, embedding_type)):
             # embeddings are provided as files
             embedding_filename = embedding_type
         else:
@@ -119,8 +119,9 @@ class TextDataset(data.Dataset):
         return embeddings
 
     def load_class_id(self, data_dir, total_num):
-        if os.path.isfile(data_dir + '/class_info.pickle'):
-            with open(data_dir + '/class_info.pickle', 'rb') as f:
+        path_ = os.path.join(data_dir + 'class_info.pickle')
+        if os.path.isfile(path_):
+            with open(path_, 'rb') as f:
                 class_id = pickle.load(f)
         else:
             class_id = np.arange(total_num)
