@@ -1,5 +1,4 @@
 from __future__ import print_function
-import torch.backends.cudnn as cudnn
 import torch
 import torchvision.transforms as transforms
 
@@ -9,8 +8,8 @@ import random
 import sys
 import pprint
 import datetime
-import dateutil
 import dateutil.tz
+from torch.utils.data import DataLoader
 
 dir_path = (os.path.abspath(os.path.join(os.path.realpath(__file__), './.')))
 sys.path.append(dir_path)
@@ -67,9 +66,9 @@ if __name__ == "__main__":
                               embedding_type=cfg.EMBEDDING_TYPE,
                               transform=image_transform)
         assert dataset
-        dataloader = torch.utils.data.DataLoader(
-            dataset, batch_size=cfg.TRAIN.BATCH_SIZE * num_gpu,
-            drop_last=True, shuffle=True, num_workers=int(cfg.WORKERS))
+        dataloader = DataLoader(dataset=dataset, batch_size=cfg.TRAIN.BATCH_SIZE * num_gpu, drop_last=cfg.TRAIN.BATCH_DROP_LAST,
+                                shuffle=True, num_workers=int(cfg.WORKERS))
+        # train_dl = DataLoader(dataset=train_ds, batch_size=opt.batchsize, shuffle=False, drop_last=True)
 
         algo = GANTrainer(output_dir)
         algo.train(dataloader, cfg.STAGE)

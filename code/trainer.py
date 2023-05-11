@@ -56,9 +56,7 @@ class GANTrainer(object):
         print(netD)
 
         if cfg.NET_G != '':
-            state_dict = \
-                torch.load(cfg.NET_G,
-                           map_location=lambda storage, loc: storage)
+            state_dict = torch.load(cfg.NET_G, map_location=lambda storage, loc: storage)
             netG.load_state_dict(state_dict)
             print('Load from: ', cfg.NET_G)
         if cfg.NET_D != '':
@@ -120,9 +118,8 @@ class GANTrainer(object):
         nz = cfg.Z_DIM
         batch_size = self.batch_size
         noise = Variable(torch.FloatTensor(batch_size, nz))
-        fixed_noise = \
-            Variable(torch.FloatTensor(batch_size, nz).normal_(0, 1),
-                     volatile=True)
+        with torch.no_grad():
+            fixed_noise = Variable(torch.FloatTensor(batch_size, nz).normal_(0, 1))
         real_labels = Variable(torch.FloatTensor(batch_size).fill_(1))
         fake_labels = Variable(torch.FloatTensor(batch_size).fill_(0))
         if cfg.CUDA:
@@ -132,16 +129,12 @@ class GANTrainer(object):
         generator_lr = cfg.TRAIN.GENERATOR_LR
         discriminator_lr = cfg.TRAIN.DISCRIMINATOR_LR
         lr_decay_step = cfg.TRAIN.LR_DECAY_EPOCH
-        optimizerD = \
-            optim.Adam(netD.parameters(),
-                       lr=cfg.TRAIN.DISCRIMINATOR_LR, betas=(0.5, 0.999))
+        optimizerD = optim.Adam(netD.parameters(), lr=cfg.TRAIN.DISCRIMINATOR_LR, betas=(0.5, 0.999))
         netG_para = []
         for p in netG.parameters():
             if p.requires_grad:
                 netG_para.append(p)
-        optimizerG = optim.Adam(netG_para,
-                                lr=cfg.TRAIN.GENERATOR_LR,
-                                betas=(0.5, 0.999))
+        optimizerG = optim.Adam(netG_para, lr=cfg.TRAIN.GENERATOR_LR, betas=(0.5, 0.999))
         count = 0
         for epoch in range(self.max_epoch):
             start_t = time.time()
@@ -152,8 +145,10 @@ class GANTrainer(object):
                 discriminator_lr *= 0.5
                 for param_group in optimizerD.param_groups:
                     param_group['lr'] = discriminator_lr
-
-            for i, data in enumerate(data_loader, 0):
+            print("Dataset Length", len(data_loader.dataset))
+            loop_ran = False
+            for i, data in enumerate(data_loader):
+                loop_ran = True
                 ######################################################
                 # (1) Prepare training data
                 ######################################################
@@ -169,17 +164,15 @@ class GANTrainer(object):
                 ######################################################
                 noise.data.normal_(0, 1)
                 inputs = (txt_embedding, noise)
-                _, fake_imgs, mu, logvar = \
-                    nn.parallel.data_parallel(netG, inputs, self.gpus)
+                _, fake_imgs, mu, logvar = nn.parallel.data_parallel(netG, inputs, self.gpus)
 
                 ############################
                 # (3) Update D network
                 ###########################
                 netD.zero_grad()
-                errD, errD_real, errD_wrong, errD_fake = \
-                    compute_discriminator_loss(netD, real_imgs, fake_imgs,
-                                               real_labels, fake_labels,
-                                               mu, self.gpus)
+                errD, errD_real, errD_wrong, errD_fake = compute_discriminator_loss(netD, real_imgs, fake_imgs,
+                                                                                    real_labels, fake_labels,
+                                                                                    mu, self.gpus)
                 errD.backward()
                 optimizerD.step()
                 ############################
@@ -216,6 +209,15 @@ class GANTrainer(object):
                     save_img_results(real_img_cpu, fake, epoch, self.image_dir)
                     if lr_fake is not None:
                         save_img_results(None, lr_fake, epoch, self.image_dir)
+            if loop_ran is False:
+                raise Warning(
+                    "Not enough data available.\n"
+                    "Reasons:\n"
+                    "(1) Dataset() length=0 or \n"
+                    "(2) When `drop_last=True` in Dataloader() and the `Dataset() length` < `batch-size`\n"
+                    "Solutions:\n"
+                    "(1) Reduce batch size to satisfy `Dataset() length` >= `batch-size`[recommended]\n"
+                    "(2) Set `drop_last=False`[not recommended]")
             end_t = time.time()
             print('''[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f Loss_KL: %.4f
                      Loss_real: %.4f Loss_wrong:%.4f Loss_fake %.4f
@@ -287,4 +289,3 @@ class GANTrainer(object):
                 im = Image.fromarray(im)
                 im.save(save_name)
             count += batch_size
-

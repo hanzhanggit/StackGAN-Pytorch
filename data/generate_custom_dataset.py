@@ -4,9 +4,9 @@ import pathlib
 import pickle
 from pprint import pprint
 
+from voc_tools.constants import VOC_IMAGES
+from voc_tools.reader import list_dir
 from voc_tools.utils import VOCDataset
-import fasttext
-import fasttext.util
 
 
 def parse_args():
@@ -27,7 +27,7 @@ def generate_class_id_pickle(dataset_path):
     dataset_path = pathlib.Path(dataset_path)
     assert os.path.exists(str(dataset_path))
 
-    classes = VOCDataset(dataset_path).train.load().class_names()
+    classes = [annotations[0].class_name for annotations, image in VOCDataset(dataset_path).train.fetch(bulk=True)]
     # save as pickle file
     pickle_class_info_path = str(dataset_path / "train" / "class_info.pickle")
     with open(pickle_class_info_path, 'wb') as fpp:
@@ -44,6 +44,8 @@ def generate_text_embedding_pickle(dataset_path, fasttext_vector=None, fasttext_
         fasttext_model: Pretrained fasttext  model (*.bin) file path See: https://fasttext.cc/docs/en/crawl-vectors.html
         embed_dim: Final embedding dimension
     """
+    import fasttext
+    import fasttext.util
     dataset_path = pathlib.Path(dataset_path)
     assert os.path.exists(str(dataset_path))
     model = None
@@ -57,8 +59,8 @@ def generate_text_embedding_pickle(dataset_path, fasttext_vector=None, fasttext_
             fasttext.util.reduce_model(model, embed_dim)
     assert model is not None, "A fasttext  model has to be initialised"
     print("Generating embeddings...", end="")
-    embeddings = [model.get_word_vector(caption.captions) for caption in
-                  VOCDataset(dataset_path, caption_support=True).train.caption.fetch()]
+    embeddings = [list(map(lambda cap: model.get_word_vector(cap.captions), caption_list)) for caption_list in
+                  VOCDataset(dataset_path, caption_support=True).train.caption.fetch(bulk=True)]
     print("Done.")
     print("Saving...")
     # save as pickle file
@@ -80,8 +82,10 @@ def generate_filename_pickle(dataset_path):
     pickle_filenames_path = str(dataset_path / "train" / "filenames.pickle")
 
     # read the filenames from captions
-    mylist = [caption.filename.replace(".txt", ".jpeg") for caption in
-              VOCDataset(dataset_path, caption_support=True).train.caption.fetch()]
+    # mylist = [caption.filename.replace(".txt", ".jpeg") for caption in
+    #           VOCDataset(dataset_path, caption_support=True).train.caption.fetch()]
+
+    mylist = [os.path.basename(file) for file in list_dir(str(dataset_path / "train"), dir_flag=VOC_IMAGES)]
 
     # save as pickle file
     with open(pickle_filenames_path, 'wb') as fpp:
@@ -89,14 +93,11 @@ def generate_filename_pickle(dataset_path):
         print("'{}' is created with {} entries".format(pickle_filenames_path, len(mylist)))
 
 
-"""
---data_dir
-data/sixray_sample
---fasttext_model
-/mnt/c/Users/dndlssardar/Downloads/Fasttext/cc.en.300.bin
+""" UBUNTU
+python data/generate_custom_dataset.py --data_dir data/sixray_sample --fasttext_model /mnt/c/Users/dndlssardar/Downloads/Fasttext/cc.en.300.bin
 """
 if __name__ == '__main__':
     args = parse_args()
     generate_filename_pickle(args.data_dir)
     generate_class_id_pickle(args.data_dir)
-    generate_text_embedding_pickle(args.data_dir, args.fasttext_vector, args.fasttext_model)
+    # generate_text_embedding_pickle(args.data_dir, args.fasttext_vector, args.fasttext_model)
