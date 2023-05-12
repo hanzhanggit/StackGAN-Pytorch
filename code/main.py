@@ -49,8 +49,8 @@ if __name__ == "__main__":
         torch.cuda.manual_seed_all(args.manualSeed)
     now = datetime.datetime.now(dateutil.tz.tzlocal())
     timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
-    output_dir = '../output/%s_%s_%s' % \
-                 (cfg.DATASET_NAME, cfg.CONFIG_NAME, timestamp)
+    output_dir = 'output/%s_%s_%s' % (cfg.DATASET_NAME, cfg.CONFIG_NAME, timestamp)
+    print("Output:", output_dir)
 
     num_gpu = len(cfg.GPU_ID.split(','))
     if cfg.TRAIN.FLAG:
@@ -65,10 +65,11 @@ if __name__ == "__main__":
                               imsize=cfg.IMSIZE,
                               embedding_type=cfg.EMBEDDING_TYPE,
                               transform=image_transform)
+        print("Dataset Length:", len(dataset))
         assert dataset
-        dataloader = DataLoader(dataset=dataset, batch_size=cfg.TRAIN.BATCH_SIZE * num_gpu, drop_last=cfg.TRAIN.BATCH_DROP_LAST,
+        dataloader = DataLoader(dataset=dataset, batch_size=cfg.TRAIN.BATCH_SIZE * num_gpu,
+                                drop_last=cfg.TRAIN.BATCH_DROP_LAST,
                                 shuffle=True, num_workers=int(cfg.WORKERS))
-        # train_dl = DataLoader(dataset=train_ds, batch_size=opt.batchsize, shuffle=False, drop_last=True)
 
         algo = GANTrainer(output_dir)
         algo.train(dataloader, cfg.STAGE)

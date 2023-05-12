@@ -12,6 +12,7 @@ import time
 
 import numpy as np
 import torchfile
+from torch.utils.tensorboard import SummaryWriter
 
 from miscc.config import cfg
 from miscc.utils import mkdir_p
@@ -33,7 +34,7 @@ class GANTrainer(object):
             mkdir_p(self.model_dir)
             mkdir_p(self.image_dir)
             mkdir_p(self.log_dir)
-            self.summary_writer = FileWriter(self.log_dir)
+            self.summary_writer = SummaryWriter(self.log_dir)
 
         self.max_epoch = cfg.TRAIN.MAX_EPOCH
         self.snapshot_interval = cfg.TRAIN.SNAPSHOT_INTERVAL
@@ -54,17 +55,19 @@ class GANTrainer(object):
         netD = STAGE1_D()
         netD.apply(weights_init)
         print(netD)
+        if cfg.TRAIN.FINETUNE.FLAG:
+            assert os.path.isfile(
+                cfg.TRAIN.FINETUNE.NET_G), "TRAIN.FINETUNE.NET_G is required when TRAIN.FINETUNE.FLAG=True"
+            assert os.path.isfile(
+                cfg.TRAIN.FINETUNE.NET_D), "TRAIN.FINETUNE.NET_D is required when TRAIN.FINETUNE.FLAG=True"
 
-        if cfg.NET_G != '':
-            state_dict = torch.load(cfg.NET_G, map_location=lambda storage, loc: storage)
+            state_dict = torch.load(cfg.TRAIN.FINETUNE.NET_G, map_location=lambda storage, loc: storage)
             netG.load_state_dict(state_dict)
-            print('Load from: ', cfg.NET_G)
-        if cfg.NET_D != '':
-            state_dict = \
-                torch.load(cfg.NET_D,
-                           map_location=lambda storage, loc: storage)
+            print('Load from NET_G: ', cfg.TRAIN.FINETUNE.NET_G)
+
+            state_dict = torch.load(cfg.TRAIN.FINETUNE.NET_D, map_location=lambda storage, loc: storage)
             netD.load_state_dict(state_dict)
-            print('Load from: ', cfg.NET_D)
+            print('Load from NET_D: ', cfg.TRAIN.FINETUNE.NET_D)
         if cfg.CUDA:
             netG.cuda()
             netD.cuda()
@@ -77,33 +80,30 @@ class GANTrainer(object):
         Stage1_G = STAGE1_G()
         netG = STAGE2_G(Stage1_G)
         netG.apply(weights_init)
-        print(netG)
-        if cfg.NET_G != '':
-            state_dict = \
-                torch.load(cfg.NET_G,
-                           map_location=lambda storage, loc: storage)
-            netG.load_state_dict(state_dict)
-            print('Load from: ', cfg.NET_G)
-        elif cfg.STAGE1_G != '':
-            state_dict = \
-                torch.load(cfg.STAGE1_G,
-                           map_location=lambda storage, loc: storage)
-            netG.STAGE1_G.load_state_dict(state_dict)
-            print('Load from: ', cfg.STAGE1_G)
-        else:
-            print("Please give the Stage1_G path")
-            return
-
         netD = STAGE2_D()
         netD.apply(weights_init)
-        if cfg.NET_D != '':
-            state_dict = \
-                torch.load(cfg.NET_D,
-                           map_location=lambda storage, loc: storage)
-            netD.load_state_dict(state_dict)
-            print('Load from: ', cfg.NET_D)
+        print(netG)
         print(netD)
+        if cfg.TRAIN.FINETUNE.FLAG:
+            assert os.path.isfile(
+                cfg.TRAIN.FINETUNE.NET_G), "TRAIN.FINETUNE.NET_G is required when TRAIN.FINETUNE.FLAG=True"
+            assert os.path.isfile(
+                cfg.TRAIN.FINETUNE.NET_D), "TRAIN.FINETUNE.NET_D is required when TRAIN.FINETUNE.FLAG=True"
 
+            state_dict = torch.load(cfg.TRAIN.FINETUNE.NET_G, map_location=lambda storage, loc: storage)
+            netG.load_state_dict(state_dict)
+            print('Load from NET_G: ', cfg.TRAIN.FINETUNE.NET_G)
+
+            state_dict = torch.load(cfg.TRAIN.FINETUNE.NET_D, map_location=lambda storage, loc: storage)
+            netD.load_state_dict(state_dict)
+            print('Load from NET_D: ', cfg.TRAIN.FINETUNE.NET_D)
+
+        if cfg.STAGE1_G != '' and os.path.isfile(cfg.STAGE1_G):
+            state_dict = torch.load(cfg.STAGE1_G, map_location=lambda storage, loc: storage)
+            netG.STAGE1_G.load_state_dict(state_dict)
+            print('Load from STAGE1_G: ', cfg.STAGE1_G)
+        else:
+            assert ValueError("Please give the STAGE1_G path while training Stage-2 of StackGAN")
         if cfg.CUDA:
             netG.cuda()
             netD.cuda()
@@ -135,8 +135,13 @@ class GANTrainer(object):
             if p.requires_grad:
                 netG_para.append(p)
         optimizerG = optim.Adam(netG_para, lr=cfg.TRAIN.GENERATOR_LR, betas=(0.5, 0.999))
+        # setup epoch
+        epoch_start = 0
+        if cfg.TRAIN.FINETUNE.FLAG:
+            epoch_start = cfg.TRAIN.FINETUNE.EPOCH_START
+
         count = 0
-        for epoch in range(self.max_epoch):
+        for epoch in range(epoch_start, self.max_epoch):
             start_t = time.time()
             if epoch % lr_decay_step == 0 and epoch > 0:
                 generator_lr *= 0.5
@@ -145,9 +150,9 @@ class GANTrainer(object):
                 discriminator_lr *= 0.5
                 for param_group in optimizerD.param_groups:
                     param_group['lr'] = discriminator_lr
-            print("Dataset Length", len(data_loader.dataset))
+
             loop_ran = False
-            for i, data in enumerate(data_loader):
+            for i, data in enumerate(data_loader, 0):
                 loop_ran = True
                 ######################################################
                 # (1) Prepare training data
@@ -188,24 +193,16 @@ class GANTrainer(object):
 
                 count = count + 1
                 if i % 100 == 0:
-                    summary_D = summary.scalar('D_loss', errD.data[0])
-                    summary_D_r = summary.scalar('D_loss_real', errD_real)
-                    summary_D_w = summary.scalar('D_loss_wrong', errD_wrong)
-                    summary_D_f = summary.scalar('D_loss_fake', errD_fake)
-                    summary_G = summary.scalar('G_loss', errG.data[0])
-                    summary_KL = summary.scalar('KL_loss', kl_loss.data[0])
-
-                    self.summary_writer.add_summary(summary_D, count)
-                    self.summary_writer.add_summary(summary_D_r, count)
-                    self.summary_writer.add_summary(summary_D_w, count)
-                    self.summary_writer.add_summary(summary_D_f, count)
-                    self.summary_writer.add_summary(summary_G, count)
-                    self.summary_writer.add_summary(summary_KL, count)
+                    self.summary_writer.add_scalar('D_loss', errD.data, count)
+                    self.summary_writer.add_scalar('D_loss_real', errD_real, count)
+                    self.summary_writer.add_scalar('D_loss_wrong', errD_wrong, count)
+                    self.summary_writer.add_scalar('D_loss_fake', errD_fake, count)
+                    self.summary_writer.add_scalar('G_loss', errG.data, count)
+                    self.summary_writer.add_scalar('KL_loss', kl_loss.data, count)
 
                     # save the image result for each epoch
                     inputs = (txt_embedding, fixed_noise)
-                    lr_fake, fake, _, _ = \
-                        nn.parallel.data_parallel(netG, inputs, self.gpus)
+                    lr_fake, fake, _, _ = nn.parallel.data_parallel(netG, inputs, self.gpus)
                     save_img_results(real_img_cpu, fake, epoch, self.image_dir)
                     if lr_fake is not None:
                         save_img_results(None, lr_fake, epoch, self.image_dir)
@@ -224,7 +221,7 @@ class GANTrainer(object):
                      Total Time: %.2fsec
                   '''
                   % (epoch, self.max_epoch, i, len(data_loader),
-                     errD.data[0], errG.data[0], kl_loss.data[0],
+                     errD.data.item(), errG.data.item(), kl_loss.data.item(),
                      errD_real, errD_wrong, errD_fake, (end_t - start_t)))
             if epoch % self.snapshot_interval == 0:
                 save_model(netG, netD, epoch, self.model_dir)

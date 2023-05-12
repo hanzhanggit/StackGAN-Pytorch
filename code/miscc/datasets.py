@@ -33,7 +33,7 @@ class TextDataset(data.Dataset):
 
         self.filenames = self.load_filenames(split_dir)
         self.embeddings = self.load_embedding(split_dir, embedding_type)
-        # self.class_id = self.load_class_id(split_dir, len(self.filenames))
+        self.class_id = self.load_class_id(split_dir, len(self.filenames))
         # self.captions = self.load_all_captions()
 
     def get_img(self, img_path, bbox):
@@ -112,30 +112,32 @@ class TextDataset(data.Dataset):
         # > https://arxiv.org/pdf/1605.05395.pdf
 
         with open(os.path.join(data_dir, embedding_filename), 'rb') as f:
-            embeddings = pickle.load(f)
+            embeddings = pickle.load(f, encoding="bytes")
             embeddings = np.array(embeddings)
             # embedding_shape = [embeddings.shape[-1]]
             print('embeddings: ', embeddings.shape)
         return embeddings
 
     def load_class_id(self, data_dir, total_num):
-        path_ = os.path.join(data_dir + 'class_info.pickle')
+        path_ = os.path.join(data_dir, 'class_info.pickle')
         if os.path.isfile(path_):
             with open(path_, 'rb') as f:
-                class_id = pickle.load(f)
+                class_id = np.array(pickle.load(f, encoding="bytes"))
         else:
             class_id = np.arange(total_num)
+        print('Class_ids: ', class_id.shape, "Sample:", class_id[0])
         return class_id
 
     def load_filenames(self, data_dir):
         filepath = os.path.join(data_dir, 'filenames.pickle')
         with open(filepath, 'rb') as f:
             filenames = pickle.load(f)
-        print('Load filenames from: %s (%d)' % (filepath, len(filenames)))
+        print('Load filenames from: %s (%d)' % (filepath, len(filenames)), "sample:", filenames[0])
         return filenames
 
     def __getitem__(self, index):
         key = self.filenames[index]
+        key = key.replace(".jpeg", ".jpg")  # TODO remove
         # cls_id = self.class_id[index]
         #
         if self.bbox is not None:
@@ -146,12 +148,12 @@ class TextDataset(data.Dataset):
             data_dir = self.data_dir
 
         # captions = self.captions[key]
-        embeddings = self.embeddings[index, :, :]
-        img_name = '%s/images/%s.jpg' % (data_dir, key)
+        embeddings = self.embeddings[index, :, :]  # TODO uncomment and understand
+        img_name = '%s/train/JPEGImages/%s' % (data_dir, key)  # TODO read path form pickle
         img = self.get_img(img_name, bbox)
 
-        embedding_ix = random.randint(0, embeddings.shape[0] - 1)
-        embedding = embeddings[embedding_ix, :]
+        embedding_ix = random.randint(0, embeddings.shape[0] - 1)  # TODO uncomment and understand
+        embedding = embeddings[embedding_ix, :]  # TODO uncomment and understand
         if self.target_transform is not None:
             embedding = self.target_transform(embedding)
         return img, embedding

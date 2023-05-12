@@ -25,7 +25,6 @@ __C.Z_DIM = 100
 __C.IMSIZE = 64
 __C.STAGE = 1
 
-
 # Training options
 __C.TRAIN = edict()
 __C.TRAIN.FLAG = True
@@ -41,6 +40,13 @@ __C.TRAIN.GENERATOR_LR = 2e-4
 
 __C.TRAIN.COEFF = edict()
 __C.TRAIN.COEFF.KL = 2.0
+
+# To be used for resume training from a checkpoint
+__C.TRAIN.FINETUNE = edict()
+__C.TRAIN.FINETUNE.FLAG = False
+__C.TRAIN.FINETUNE.EPOCH_START = 0
+__C.TRAIN.FINETUNE.NET_G = ''
+__C.TRAIN.FINETUNE.NET_D = ''
 
 # Modal options
 __C.GAN = edict()

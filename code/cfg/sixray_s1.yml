@@ -1,7 +1,7 @@
-CONFIG_NAME: 'stageI'
+CONFIG_NAME: 'stage1'
 
 DATASET_NAME: 'sixray_sample'
-EMBEDDING_TYPE: 'embeddings_cc.en.300.bin_100.pickle'
+EMBEDDING_TYPE: 'embeddings_cc.en.300.bin_100D.pickle'
 GPU_ID: '0,1'
 Z_DIM: 100
 DATA_DIR: '../data/sixray_sample'
@@ -12,13 +12,18 @@ TRAIN:
   FLAG: True
   BATCH_SIZE: 6
   BATCH_DROP_LAST: True
-  MAX_EPOCH: 120
+  MAX_EPOCH: 300
   LR_DECAY_EPOCH: 20
   SNAPSHOT_INTERVAL: 10
   DISCRIMINATOR_LR: 0.0002
   GENERATOR_LR: 0.0002
   COEFF:
     KL: 2.0
+  FINETUNE:
+    FLAG: True
+    EPOCH_START: 201
+    NET_G: 'output/sixray_sample_stage1_2023_05_12_14_06_46/Model/netG_epoch_200.pth'
+    NET_D: 'output/sixray_sample_stage1_2023_05_12_14_06_46/Model/netD_epoch_last.pth'
 
 GAN:
   CONDITION_DIM: 128
