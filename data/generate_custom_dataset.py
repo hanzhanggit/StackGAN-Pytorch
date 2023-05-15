@@ -16,6 +16,7 @@ def parse_args():
                         default='my_data', type=str, )
     parser.add_argument('--fasttext_vector', dest='fasttext_vector', type=str, default=None)
     parser.add_argument('--fasttext_model', dest='fasttext_model', type=str, default=None)
+    parser.add_argument('--emb_dim', dest='emb_dim', type=int, default=300)
     parser.add_argument('--bulk', dest='bulk', default=False, action="store_true")
     # parser.add_argument('--gpu', dest='gpu_id', type=str, default='0')
     # parser.add_argument('--manualSeed', type=int, help='manual seed', default=47)
@@ -57,7 +58,7 @@ def generate_class_id_pickle(dataset_path, bulk=False):
         print("'{}' is created with {} entries".format(pickle_class_info_path, len(class_id)))
 
 
-def generate_text_embedding_pickle(dataset_path, fasttext_vector=None, fasttext_model=None, embed_dim=100, bulk=False):
+def generate_text_embedding_pickle(dataset_path, fasttext_vector=None, fasttext_model=None, emb_dim=300, bulk=False):
     """
     Generate and save caption embedding into a pickle file.
 
@@ -71,7 +72,7 @@ def generate_text_embedding_pickle(dataset_path, fasttext_vector=None, fasttext_
         dataset_path: VOC dataset path
         fasttext_vector: Pretrained fasttext vector (*.vec) file path See: https://fasttext.cc/docs/en/english-vectors.html
         fasttext_model: Pretrained fasttext  model (*.bin) file path See: https://fasttext.cc/docs/en/crawl-vectors.html
-        embed_dim: Final embedding dimension
+        emb_dim: Final embedding dimension
         bulk: This boolean flag specifies whether to store as bulk or single
     """
     import fasttext
@@ -85,8 +86,8 @@ def generate_text_embedding_pickle(dataset_path, fasttext_vector=None, fasttext_
         print("Loading fasttext model:{}...".format(fasttext_model), end="")
         model = fasttext.load_model(fasttext_model)
         print("Loaded")
-        if embed_dim != model.get_dimension():
-            fasttext.util.reduce_model(model, embed_dim)
+        if emb_dim != model.get_dimension():
+            fasttext.util.reduce_model(model, emb_dim)
     assert model is not None, "A fasttext  model has to be initialised"
     print("Generating embeddings...", end="")
     if bulk:
@@ -98,7 +99,7 @@ def generate_text_embedding_pickle(dataset_path, fasttext_vector=None, fasttext_
     print("Done.")
     print("Saving...")
     # save as pickle file
-    pickle_path = str(dataset_path / "train" / "embeddings_{}_{}D.pickle".format(model_name, embed_dim))
+    pickle_path = str(dataset_path / "train" / "embeddings_{}_{}D.pickle".format(model_name, emb_dim))
     with open(pickle_path, 'wb') as fpp:
         pickle.dump(embeddings, fpp)
         print("'{}' is created with {} entries".format(pickle_path, len(embeddings)))
@@ -127,9 +128,9 @@ def generate_filename_pickle(dataset_path, bulk=False):
         mylist = [os.path.basename(file) for file in list_dir(str(dataset_path / "train"), dir_flag=VOC_IMAGES)]
     else:
         # read the filenames from captions
-        mylist = [caption.filename.replace(".txt", ".jpeg") for caption in
+        mylist = [caption.filename.replace(".txt", ".jpg") for caption in
                   VOCDataset(dataset_path, caption_support=True).train.caption.fetch(bulk=False)]
-
+    mylist = list(map(lambda x: os.path.join("train", "JPEGImages", x), mylist))
     # save as pickle file
     with open(pickle_filenames_path, 'wb') as fpp:
         pickle.dump(mylist, fpp)
@@ -137,10 +138,11 @@ def generate_filename_pickle(dataset_path, bulk=False):
 
 
 """ UBUNTU
-python data/generate_custom_dataset.py --data_dir data/sixray_sample --fasttext_model /mnt/c/Users/dndlssardar/Downloads/Fasttext/cc.en.300.bin
+python data/generate_custom_dataset.py --data_dir data/sixray_sample --fasttext_model /mnt/c/Users/dndlssardar/Downloads/Fasttext/cc.en.300.bin --emb_dim 300
 """
 if __name__ == '__main__':
     args = parse_args()
     generate_filename_pickle(args.data_dir, args.bulk)
     generate_class_id_pickle(args.data_dir, args.bulk)
-    generate_text_embedding_pickle(args.data_dir, args.fasttext_vector, args.fasttext_model, bulk=args.bulk)
+    generate_text_embedding_pickle(args.data_dir, args.fasttext_vector, args.fasttext_model, emb_dim=args.emb_dim,
+                                   bulk=args.bulk)

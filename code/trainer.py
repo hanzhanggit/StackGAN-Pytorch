@@ -1,4 +1,7 @@
 from __future__ import print_function
+
+from pprint import pprint
+
 from six.moves import range
 from PIL import Image
 
@@ -9,6 +12,7 @@ from torch.autograd import Variable
 import torch.optim as optim
 import os
 import time
+import gc
 
 import numpy as np
 import torchfile
@@ -225,9 +229,29 @@ class GANTrainer(object):
                      errD_real, errD_wrong, errD_fake, (end_t - start_t)))
             if epoch % self.snapshot_interval == 0:
                 save_model(netG, netD, epoch, self.model_dir)
+
+            # CLEAN GPU RAM  ########################
+            # pprint(torch.cuda.memory_summary(device=None, abbreviated=False))
+            torch.cuda.empty_cache()
+            del real_imgs
+            del txt_embedding
+            del inputs
+            del _
+            del fake_imgs
+            del mu
+            del logvar
+            del errD
+            del errD_real
+            del errD_wrong
+            del errD_fake
+            del kl_loss
+            del errG_total
+            gc.collect()
+            # CLEAN GPU RAM ########################
         #
         save_model(netG, netD, self.max_epoch, self.model_dir)
         #
+        self.summary_writer.flush()
         self.summary_writer.close()
 
     def sample(self, datapath, stage=1):

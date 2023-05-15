@@ -1,10 +1,10 @@
 CONFIG_NAME: 'stage2'
 
 DATASET_NAME: 'sixray_sample'
-EMBEDDING_TYPE: 'embeddings_cc.en.300.bin_100D.pickle'
+EMBEDDING_TYPE: 'embeddings_cc.en.300.bin_300D.pickle'
 GPU_ID: '0,1'
 Z_DIM: 100
-STAGE1_G: 'output/sixray_sample_stage1_2023_05_12_14_06_46/Model/netG_epoch_200.pth'
+STAGE1_G: 'output/sixray_sample_stage1_2023_05_12_19_17_04/Model/netG_epoch_300.pth'
 DATA_DIR: 'data/sixray_sample'
 WORKERS: 4
 IMSIZE: 256
@@ -13,7 +13,7 @@ TRAIN:
   FLAG: True
   BATCH_SIZE: 6
   BATCH_DROP_LAST: True
-  MAX_EPOCH: 200
+  MAX_EPOCH: 500
   LR_DECAY_EPOCH: 20
   SNAPSHOT_INTERVAL: 5
   DISCRIMINATOR_LR: 0.0002
@@ -21,10 +21,10 @@ TRAIN:
   COEFF:
     KL: 2.0
   FINETUNE:
-    FLAG: True
-    EPOCH_START: 86
-    NET_G: 'output/sixray_sample_stage2_2023_05_12_15_06_37/Model/netG_epoch_85.pth'
-    NET_D: 'output/sixray_sample_stage2_2023_05_12_15_06_37/Model/netD_epoch_last.pth'
+    FLAG: False
+    EPOCH_START: 0
+    NET_G: ''
+    NET_D: ''
 
 GAN:
   CONDITION_DIM: 128
@@ -33,4 +33,4 @@ GAN:
   R_NUM: 2
 
 TEXT:
-  DIMENSION: 100
+  DIMENSION: 300

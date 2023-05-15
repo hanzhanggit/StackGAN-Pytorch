@@ -136,24 +136,23 @@ class TextDataset(data.Dataset):
         return filenames
 
     def __getitem__(self, index):
-        key = self.filenames[index]
-        key = key.replace(".jpeg", ".jpg")  # TODO remove
+        filepath = self.filenames[index]
         # cls_id = self.class_id[index]
-        #
         if self.bbox is not None:
-            bbox = self.bbox[key]
+            bbox = self.bbox[filepath]
             data_dir = '%s/CUB_200_2011' % self.data_dir
         else:
             bbox = None
             data_dir = self.data_dir
 
-        # captions = self.captions[key]
-        embeddings = self.embeddings[index, :, :]  # TODO uncomment and understand
-        img_name = '%s/train/JPEGImages/%s' % (data_dir, key)  # TODO read path form pickle
+        # captions = self.captions[filepath]
+        embeddings = self.embeddings[index, :, :]
+        img_name = os.path.join(data_dir, filepath)
+        assert os.path.isfile(img_name), img_name
         img = self.get_img(img_name, bbox)
 
-        embedding_ix = random.randint(0, embeddings.shape[0] - 1)  # TODO uncomment and understand
-        embedding = embeddings[embedding_ix, :]  # TODO uncomment and understand
+        embedding_ix = random.randint(0, embeddings.shape[0] - 1)
+        embedding = embeddings[embedding_ix, :]
         if self.target_transform is not None:
             embedding = self.target_transform(embedding)
         return img, embedding
