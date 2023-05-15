@@ -23,12 +23,8 @@ Base Deeplearning Framework: `Pytorch`
 
 In addition, please add the project folder to PYTHONPATH and `pip install` the following packages:
 
-- `tensorboard`
-- `tensorboardX`
-- `python-dateutil`
-- `easydict`
-- `pandas`
-- `torchfile`
+- `pip install requirements.txt`
+- `conda install -c conda-forge fasttext`
 - `conda install pytorch==2.0.0  pytorch-cuda=11.7 -c pytorch -c nvidia`
 
 **Or** use the following command `pip install -r requirements.txt`
