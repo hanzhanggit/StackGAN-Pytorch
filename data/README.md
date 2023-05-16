@@ -1,7 +1,18 @@
-# StackGAN-pytorch
-**Data**
+# Custom Data
 
-1. Download our preprocessed char-CNN-RNN text embeddings for [training coco](https://drive.google.com/open?id=0B3y_msrWZaXLQXVzOENCY2E3TlU) and  [evaluating coco](https://drive.google.com/open?id=0B3y_msrWZaXLeEs5MTg0RC1fa0U), save them to `data/coco`.
-   - [Optional] Follow the instructions [reedscot/icml2016](https://github.com/reedscot/icml2016) to download the pretrained char-CNN-RNN text encoders and extract text embeddings.
-2. Download the [coco](http://cocodataset.org/#download) image data. Extract them to `data/coco/`.
+## Prepare Directory
+
+1. Save images into `data/my_data/train/images` directory
+2. `data/my_data/train` should contain at-least two folders `images`  and `text`
+3. The `text` directory contains a text file per image available in `images` directory
+
+## Download Fasttext Model
+
+4. `wget https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.en.300.bin.gz` and save it.
+5. `gunzip cc.en.300.bin.gz` will produce `cc.en.300.bin`
+> **Note:** We can train our own Language Model. Documentation w.i.p
+
+
+## Create Dataset
+6. `python data/generate_custom_dataset.py --data_dir data/my_data --emb_dim 300 --fasttext_model /Fasttext/cc.en.300.bin`
 

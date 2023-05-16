@@ -15,19 +15,35 @@ structure is slightly different from the tensorflow implementation.
 
 <img src="examples/framework.jpg" width="850px" height="370px"/>
 
-### Dependencies
+# Environment Setup (Linux)
 
-Python 2.7 or Python 3.8
+## Install conda (if not available)
 
-Base Deeplearning Framework: `Pytorch`
+- `wget https://repo.anaconda.com/miniconda/Miniconda3-py38_23.3.1-0-Linux-x86_64.sh`
+- `bash Miniconda3-py38_23.3.1-0-Linux-x86_64.sh -b`
+- `$HOME/miniconda/bin/conda init`
+- `source $HOME/.bashrc`
 
-In addition, please add the project folder to PYTHONPATH and `pip install` the following packages:
+## Create environment
+
+- `conda create -n ganenv python=3.8`
+- `conda activate`
+
+## Install dependencies
 
 - `pip install requirements.txt`
 - `conda install -c conda-forge fasttext`
 - `conda install pytorch==2.0.0  pytorch-cuda=11.7 -c pytorch -c nvidia`
 
-**Or** use the following command `pip install -r requirements.txt`
+## Install CUDA drivers(if not available)
+
+**How to check?**
+
+```python
+import torch
+
+torch.cuda.is_available()  # should return true
+```
 
 **Data - Text**
 
@@ -44,14 +60,13 @@ In addition, please add the project folder to PYTHONPATH and `pip install` the f
 
 **Custom Dataset**
 
-1. Create a directory `data/<my_data>`
-1. Create a file `data/<my_data>/train/filenames.pickle` which contains a
+1. See `data/README.md` file
 
-**Training**
+**Training COCO**
 
 - The steps to train a StackGAN model on the COCO dataset using our preprocessed embeddings.
-    - Step 1: train Stage-I GAN (e.g., for 120 epochs) `python main.py --cfg cfg/coco_s1.yml --gpu 0`
-    - Step 2: train Stage-II GAN (e.g., for another 120 epochs) `python main.py --cfg cfg/coco_s2.yml --gpu 1`
+    - Step 1: train Stage-I GAN (e.g., for 120 epochs) `python code/main.py --cfg cfg/coco_s1.yml --gpu 0`
+    - Step 2: train Stage-II GAN (e.g., for another 120 epochs) `python code/main.py --cfg cfg/coco_s2.yml --gpu 1`
 - `*.yml` files are example configuration files for training/evaluating our models.
 - If you want to try your own datasets, [here](https://github.com/soumith/ganhacks) are some good tips about how to
   train GAN. Also, we encourage to try different hyper-parameters and architectures, especially for more complex
@@ -65,7 +80,7 @@ In addition, please add the project folder to PYTHONPATH and `pip install` the f
 
 **Evaluating**
 
-- Run `python main.py --cfg cfg/coco_eval.yml --gpu 2` to generate samples from captions in COCO validation set.
+- Run `python code/main.py --cfg cfg/coco_eval.yml --gpu 2` to generate samples from captions in COCO validation set.
 
 Examples for COCO:
 
