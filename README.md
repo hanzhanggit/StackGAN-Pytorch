@@ -19,30 +19,43 @@ structure is slightly different from the tensorflow implementation.
 
 ## Install conda (if not available)
 
+- `git clone https://github.com/Redcof/StackGAN-Pytorch.git`
 - `wget https://repo.anaconda.com/miniconda/Miniconda3-py38_23.3.1-0-Linux-x86_64.sh`
 - `bash Miniconda3-py38_23.3.1-0-Linux-x86_64.sh -b`
-- `$HOME/miniconda/bin/conda init`
+- `$HOME/miniconda3/bin/conda init`
 - `source $HOME/.bashrc`
 
 ## Create environment
 
 - `conda create -n ganenv python=3.8`
-- `conda activate`
+- `conda activate ganenv`
 
 ## Install dependencies
 
-- `pip install requirements.txt`
+- `pip install -r requirements.txt`
 - `conda install -c conda-forge fasttext`
-- `conda install pytorch==2.0.0  pytorch-cuda=11.7 -c pytorch -c nvidia`
+- `conda install pytorch torchvision  pytorch-cuda=10.1 -c pytorch -c nvidia`
 
 ## Install CUDA drivers(if not available)
 
 **How to check?**
 
-```python
-import torch
+```cmd
+python cuda_test.py # should return True
+```
 
-torch.cuda.is_available()  # should return true
+**Check OS architecture**
+`cat /etc/os-release` return the OS name and `uname -m` command should return the OS architecture. For us, it was 'x86_64'
+
+**Downloading Toolkit**
+[https://developer.nvidia.com/cuda-11-7-0-download-archive?target_os=Linux](https://developer.nvidia.com/cuda-11-7-0-download-archive?target_os=Linux)
+
+We choose to install online:
+```commandline
+sudo dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo
+sudo dnf clean all
+sudo dnf -y module install nvidia-driver:latest-dkms
+sudo dnf -y install cuda
 ```
 
 **Data - Text**
