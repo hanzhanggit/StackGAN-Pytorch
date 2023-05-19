@@ -4,7 +4,7 @@ DATASET_NAME: 'sixray_500'
 EMBEDDING_TYPE: 'embeddings_cc.en.300.bin_300D.pickle'
 GPU_ID: '0,1'
 Z_DIM: 100
-STAGE1_G: 'output/sixray_500_stage_1_2023_05_19_15_38_51/Model/netG_epoch_300.pth'
+STAGE1_G: 'output/sixray_500_stage_1_2023_05_19_15_38_51/Model/netG_epoch_1000.pth'
 DATA_DIR: 'data/sixray_500'
 WORKERS: 4
 IMSIZE: 256
@@ -13,9 +13,9 @@ TRAIN:
   FLAG: True
   BATCH_SIZE: 6
   BATCH_DROP_LAST: True
-  MAX_EPOCH: 500
+  MAX_EPOCH: 100
   LR_DECAY_EPOCH: 20
-  SNAPSHOT_INTERVAL: 5
+  SNAPSHOT_INTERVAL: 50
   DISCRIMINATOR_LR: 0.0002
   GENERATOR_LR: 0.0002
   COEFF:
