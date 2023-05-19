@@ -316,8 +316,8 @@ def from_sqlite():
     file_paths = list(list_dir(str(dataset / "train"), dir_flag=VOC_IMAGES, fullpath=True))
     file_paths.extend(list(list_dir(str(dataset / "test"), dir_flag=VOC_IMAGES, fullpath=True)))
     # generating dataset form SQLIte
-    # sqlite_data = SQLiteDataWrap(args.sqlite)
-    # sqlite_data.clean().export(args.data_dir, clean=args.clean, copy_images=args.copy_images, image_paths=file_paths)
+    sqlite_data = SQLiteDataWrap(args.sqlite)
+    sqlite_data.clean().export(args.data_dir, clean=args.clean, copy_images=args.copy_images, image_paths=file_paths)
     # For generating dataset
     Dataset.IMAGE_DIR = "JPEGImages"
     Dataset.CAPTION_DIR = "texts"
