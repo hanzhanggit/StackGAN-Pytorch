@@ -2,11 +2,14 @@ import argparse
 import os.path
 import pathlib
 import pickle
+import shutil
+from collections import defaultdict
 from pprint import pprint
 
 from voc_tools.constants import VOC_IMAGES
 from voc_tools.reader import list_dir, from_file
 from voc_tools.utils import Dataset, VOCDataset
+import sqlite3
 
 
 def generate_class_id_pickle(dataset_path, classes):
@@ -125,8 +128,8 @@ class DatasetWrap:
         dataset_path = self.dataset_path
 
         if self.is_bulk:
-            if self.is_pascal_voc_data:
-                mylist = [os.path.basename(file) for file in list_dir(str(dataset_path / "train"), dir_flag=VOC_IMAGES)]
+
+            mylist = [os.path.basename(file) for file in list_dir(str(dataset_path / "train"), dir_flag=VOC_IMAGES)]
         else:
             # read the filenames from captions
             mylist = [caption.filename.replace(".txt", ".jpg") for caption in
@@ -164,13 +167,23 @@ class DatasetWrap:
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a GAN network')
     parser.add_argument('--data_dir', dest='data_dir',
-                        help='Path to dataset directory',
+                        help='Path to dataset directory.',
                         default='my_data', type=str, )
+    parser.add_argument('--bulk', dest='bulk', default=False, action="store_true")
+    parser.add_argument('--class_id', dest='class_id', default=False, action="store_true")
     parser.add_argument('--fasttext_vector', dest='fasttext_vector', type=str, default=None)
     parser.add_argument('--fasttext_model', dest='fasttext_model', type=str, default=None)
     parser.add_argument('--emb_dim', dest='emb_dim', type=int, default=300)
-    parser.add_argument('--bulk', dest='bulk', default=False, action="store_true")
-    parser.add_argument('--class_id', dest='class_id', default=False, action="store_true")
+    parser.add_argument('--sqlite', dest='sqlite',
+                        help='Path to SQLite3 database file.',
+                        default='', type=str, )
+    parser.add_argument('--clean', dest='clean', default=False, action="store_true",
+                        help="Clean before generating new data while using sqlite")
+    parser.add_argument('--copy_images', dest='copy_images', default=False, action="store_true",
+                        help="Copy images while generating new data using sqlite, --dataroot option is required")
+    parser.add_argument('--dataroot', dest="dataroot", type=str,
+                        help="This is a path to a image dataset to copy images while creating dataset using sqlite."
+                             "The dataset format is default to PascalVOC format.")
     # parser.add_argument('--gpu', dest='gpu_id', type=str, default='0')
     # parser.add_argument('--manualSeed', type=int, help='manual seed', default=47)
     _args = parser.parse_args()
@@ -178,10 +191,7 @@ def parse_args():
     return _args
 
 
-""" UBUNTU
-python data/generate_custom_dataset.py --data_dir data/sixray_sample --emb_dim 300 --fasttext_model /mnt/c/Users/dndlssardar/Downloads/Fasttext/cc.en.300.bin
-"""
-if __name__ == '__main__':
+def from_custom_dataset():
     args = parse_args()
     Dataset.IMAGE_DIR = "images"
     Dataset.ANNO_DIR = "Annotations"
@@ -190,3 +200,140 @@ if __name__ == '__main__':
                                                                    emb_dim=args.emb_dim)
     vdw = DatasetWrap(args.data_dir, args.bulk, args.class_id)
     vdw.prepare_dataset(emb_model, emb_model_name, emb_dimension)
+
+
+class Caption:
+    def __init__(self, items):
+        self.idx = items[0]
+        self.file_id = items[1]
+        self.filename = self.file_id.replace(".jpg", ".txt")
+        self.caption = items[2]
+        self.author = items[3]
+        self.is_occluded = items[4]
+        self.is_error = items[5]
+
+
+def check_grammar(text):
+    # Create a LanguageTool instance
+    try:
+        from language_tool_python import LanguageTool
+        tool = LanguageTool('en-US')
+
+        # Check grammar in the text
+        matches = tool.check(text)
+        return matches
+    except:
+        return []
+
+
+class SQLiteDataWrap:
+
+    def __init__(self, dbpath):
+        assert os.path.isfile(dbpath), dbpath
+        conn = sqlite3.connect(dbpath)
+        self.conn = conn
+        self.dbpath = dbpath
+        self.is_clean = False
+        self.image_path_dict = None
+
+    def clean(self):
+        self.is_clean = True
+        return self
+
+    def get_path(self, file_id, image_paths):
+        if self.image_path_dict is None:
+            self.image_path_dict = defaultdict(lambda: None)
+        filepath = self.image_path_dict[file_id]
+        if filepath is None:
+            filtered = list(filter(lambda fname: file_id in fname, image_paths))
+            if len(filtered) > 0:
+                filepath = filtered[0]
+                self.image_path_dict[file_id] = filepath
+        return filepath
+
+    def export(self, data_root, clean=False, copy_images=False, image_paths=()):
+        data_root = pathlib.Path(data_root)
+
+        # defining paths
+        caption_root = data_root / "train" / "texts"
+        image_root = data_root / "train" / "JPEGImages"
+        if clean:
+            print("Cleaning previous data...", end="")
+            # deleting directories
+            shutil.rmtree(caption_root, ignore_errors=True)
+            shutil.rmtree(image_root, ignore_errors=True)
+            print("Done")
+        # create directories
+        os.makedirs(caption_root, exist_ok=True)
+        os.makedirs(image_root, exist_ok=True)
+        os.makedirs(data_root / "test" / "JPEGImages", exist_ok=True)
+        os.makedirs(data_root / "test" / "JPEGImages", exist_ok=True)
+
+        statistics = defaultdict(lambda: defaultdict(lambda: 0))
+        # taking DB cursor and running queries
+        print("Quering dataset form SQLITE...")
+        curr = self.conn.cursor()
+        dataset = curr.execute("SELECT * FROM caption")
+        print("Creating dataset form SQLITE...", end="")
+        for data in dataset:
+            caption = Caption(data)
+            if copy_images:
+                # copying images
+                filepath = self.get_path(caption.file_id, image_paths)
+                if not os.path.isfile(image_root / caption.file_id):
+                    shutil.copyfile(filepath, image_root / caption.file_id)
+
+            # creating the caption files
+            with open(caption_root / caption.filename, "a+") as fp:
+                fp.seek(0)
+                lines = fp.readlines()
+                if caption.caption + "\n" in lines:
+                    statistics[caption.filename]['duplicate'] += 1
+                    statistics["caption"]['duplicate'] += 1
+                elif len(caption.caption.split(" ")) < 5:
+                    statistics[caption.filename]['faulty'] += 1
+                    statistics["caption"]['faulty'] += 1
+                else:
+                    fp.write(caption.caption + "\n")
+                    # check grammar
+                    errors = check_grammar(caption.caption)
+                    # save statistics
+                    statistics[caption.filename]['caption'] += 1
+                    statistics[caption.filename]['grammar'] += len(errors) > 0
+                    statistics["caption"]['total'] += 1
+                    statistics['grammar']['error-sentence'] += len(errors) > 0
+                    statistics['grammar']['total-error'] += len(errors)
+        print("Done")
+        return statistics
+
+
+def from_sqlite():
+    args = parse_args()
+    dataset = pathlib.Path(args.dataroot)
+    # For reading images
+    Dataset.IMAGE_DIR = "JPEGImages"
+    # reading filepaths
+    file_paths = list(list_dir(str(dataset / "train"), dir_flag=VOC_IMAGES, fullpath=True))
+    file_paths.extend(list(list_dir(str(dataset / "test"), dir_flag=VOC_IMAGES, fullpath=True)))
+    # generating dataset form SQLIte
+    # sqlite_data = SQLiteDataWrap(args.sqlite)
+    # sqlite_data.clean().export(args.data_dir, clean=args.clean, copy_images=args.copy_images, image_paths=file_paths)
+    # For generating dataset
+    Dataset.IMAGE_DIR = "JPEGImages"
+    Dataset.CAPTION_DIR = "texts"
+    # loading embedding
+    emb_model, emb_model_name, emb_dimension = get_embedding_model(args.fasttext_vector, args.fasttext_model,
+                                                                   emb_dim=args.emb_dim)
+    # creating object to generate compatible pickle files for StackGAN
+    vdw = DatasetWrap(args.data_dir, args.bulk, args.class_id)
+    vdw.prepare_dataset(emb_model, emb_model_name, emb_dimension)
+
+
+if __name__ == '__main__':
+    # from_custom_dataset()
+    from_sqlite()
+
+""" UBUNTU
+python data/generate_custom_dataset.py --data_dir data/sixray_sample --emb_dim 300 --fasttext_model /mnt/c/Users/dndlssardar/Downloads/Fasttext/cc.en.300.bin
+python data/generate_custom_dataset.py --data_dir data/sixray_500 --fasttext_model /mnt/c/Users/dndlssardar/Downloads/Fasttext/cc.en.300.bin --sqlite data/tip_gai.db --clean --copy_images --dataroot "/mnt/c/Users/dndlssardar/OneDrive - Smiths Group/Documents/Projects/Dataset/Sixray_easy"
+"""
