@@ -20,8 +20,8 @@ TRAIN:
   COEFF:
     KL: 2.0
   FINETUNE:
-    FLAG: True
-    EPOCH_START: 301
+    FLAG: False
+    EPOCH_START: 1001
     NET_G: '/home/icmore_acc/Downloads/StackGAN-Pytorch/output/sixray_500_stage_1_2023_05_19_15_38_51/Model/netG_epoch_300.pth'
     NET_D: '/home/icmore_acc/Downloads/StackGAN-Pytorch/output/sixray_500_stage_1_2023_05_19_15_38_51/Model/netD_epoch_last.pth'
 
