@@ -185,7 +185,7 @@ if __name__ == '__main__':
     args = parse_args()
     Dataset.IMAGE_DIR = "images"
     Dataset.ANNO_DIR = "Annotations"
-    Dataset.CAPTION_DIR = "text"
+    Dataset.CAPTION_DIR = "texts"
     emb_model, emb_model_name, emb_dimension = get_embedding_model(args.fasttext_vector, args.fasttext_model,
                                                                    emb_dim=args.emb_dim)
     vdw = DatasetWrap(args.data_dir, args.bulk, args.class_id)

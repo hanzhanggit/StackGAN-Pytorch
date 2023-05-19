@@ -34,7 +34,7 @@ structure is slightly different from the tensorflow implementation.
 
 - `pip install -r requirements.txt`
 - `conda install -c conda-forge fasttext`
-- `conda install pytorch torchvision  pytorch-cuda=10.1 -c pytorch -c nvidia`
+- `conda install pytorch torchvision  pytorch-cuda=11.8 -c pytorch -c nvidia`
 
 ## Install CUDA drivers(if not available)
 
