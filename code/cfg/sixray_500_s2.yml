@@ -4,7 +4,7 @@ DATASET_NAME: 'sixray_600_caption'
 EMBEDDING_TYPE: 'embeddings_cc.en.300.bin_300D.pickle'
 GPU_ID: '0,1'
 Z_DIM: 100
-STAGE1_G: ''
+STAGE1_G: 'output/sixray_600_caption_stage_1_2023_05_19_22_44_14/Model/netG_epoch_1000.pth'
 DATA_DIR: 'data/sixray_500'
 WORKERS: 4
 IMSIZE: 256
