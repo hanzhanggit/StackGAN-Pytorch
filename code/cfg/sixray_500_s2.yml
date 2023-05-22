@@ -1,10 +1,10 @@
 CONFIG_NAME: 'stage_2'
 
-DATASET_NAME: 'sixray_600_caption'
+DATASET_NAME: 'sixray_1107_cap_432_file'
 EMBEDDING_TYPE: 'embeddings_cc.en.300.bin_300D.pickle'
 GPU_ID: '0,1'
 Z_DIM: 100
-STAGE1_G: 'output/sixray_600_caption_stage_1_2023_05_19_22_44_14/Model/netG_epoch_1000.pth'
+STAGE1_G: 'output/sixray_1107_cap_432_file_stage_1_2023_05_22_18_00_18/Model/netG_epoch_1000.pth'
 DATA_DIR: 'data/sixray_500'
 WORKERS: 4
 IMSIZE: 256
