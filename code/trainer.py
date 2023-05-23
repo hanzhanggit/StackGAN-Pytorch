@@ -203,7 +203,7 @@ class GANTrainer(object):
                     self.summary_writer.add_scalar('D_loss_fake', errD_fake, count)
                     self.summary_writer.add_scalar('G_loss', errG.data, count)
                     self.summary_writer.add_scalar('KL_loss', kl_loss.data, count)
-                if epoch % self.snapshot_interval == 0 and i % 100 == 0:
+                if (epoch % self.snapshot_interval == 0 or epoch == self.max_epoch - 1) and i % 100 == 0:
                     # save the image result for each epoch
                     inputs = (txt_embedding, fixed_noise)
                     lr_fake, fake, _, _ = nn.parallel.data_parallel(netG, inputs, self.gpus)
