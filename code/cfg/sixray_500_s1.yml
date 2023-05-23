@@ -1,6 +1,6 @@
 CONFIG_NAME: 'stage_1'
 
-DATASET_NAME: 'sixray_1107_cap_432_file'
+DATASET_NAME: 'sixray_1347_cap_fasttext300D'
 EMBEDDING_TYPE: 'embeddings_fasttext_skipgram_300_300D.pickle'
 GPU_ID: '0,1'
 Z_DIM: 100
