@@ -105,7 +105,7 @@ class TextDataset(data.Dataset):
             # embeddings are provided as files
             embedding_filename = embedding_type
         else:
-            raise ValueError("No embedding files was found")
+            raise ValueError("No embedding files was found '{}'".format(embedding_type))
 
         # > https://github.com/reedscot/icml2016
         # > https://github.com/reedscot/cvpr2016

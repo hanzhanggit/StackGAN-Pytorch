@@ -3,8 +3,10 @@ import os.path
 import pathlib
 import pickle
 import shutil
+import time
 from collections import defaultdict
 from pprint import pprint
+from easydict import EasyDict as edict
 
 from voc_tools.constants import VOC_IMAGES
 from voc_tools.reader import list_dir, from_file
@@ -32,21 +34,20 @@ def generate_class_id_pickle(dataset_path, classes):
         print("'{}' is created with {} entries".format(pickle_class_info_path, len(class_id)))
 
 
-def get_embedding_model(fasttext_vector=None, fasttext_model=None, emb_dim=300):
+def get_embedding_model(fasttext_model_path=None, emb_dim=300):
     """
     Args:
-        fasttext_vector: Pretrained fasttext vector (*.vec) file path See: https://fasttext.cc/docs/en/english-vectors.html
-        fasttext_model: Pretrained fasttext  model (*.bin) file path See: https://fasttext.cc/docs/en/crawl-vectors.html
+        fasttext_model_path: Pretrained fasttext  model (*.bin) file path See: https://fasttext.cc/docs/en/crawl-vectors.html
         emb_dim: Final embedding dimension
     """
     import fasttext
     import fasttext.util
     model = None
     model_name = ""
-    if os.path.isfile(fasttext_model):
-        model_name = pathlib.Path(fasttext_model).name
-        print("Loading fasttext model:{}...".format(fasttext_model), end="")
-        model = fasttext.load_model(fasttext_model)
+    if os.path.isfile(fasttext_model_path):
+        model_name = pathlib.Path(fasttext_model_path).name
+        print("Loading fasttext model:{}...".format(fasttext_model_path), end="")
+        model = fasttext.load_model(fasttext_model_path)
         print("Loaded")
         if emb_dim != model.get_dimension():
             fasttext.util.reduce_model(model, emb_dim)
@@ -93,12 +94,19 @@ def generate_filename_pickle(dataset_path, filenames):
 
 
 class DatasetWrap:
-    def __init__(self, dataset_path, bulk=False, class_ids=False) -> None:
+    def __init__(self, dataset_path, bulk=False, class_ids=False, fasttext_model_path=None,
+                 embedding_dimension=300) -> None:
         dataset_path = pathlib.Path(dataset_path)
         assert os.path.exists(str(dataset_path))
         self.dataset_path = pathlib.Path(dataset_path)
         self.is_bulk = bulk
         self.class_ids = class_ids
+        self.embedding_dim = embedding_dimension
+        if fasttext_model_path is not None:
+            # loading embedding
+            self.emb_model, self.emb_model_name, _ = get_embedding_model(fasttext_model_path, embedding_dimension)
+        else:
+            self.emb_model, self.emb_model_name = None, None
         self.voc_data = VOCDataset(dataset_path, caption_support=True)
 
     def _prepare_classes(self):
@@ -118,6 +126,7 @@ class DatasetWrap:
                     list(from_file(str(dataset_path / "train" / Dataset.CAPTION_DIR / caption.filename)))[
                         0].class_name,
                     self.voc_data.train.caption.fetch(bulk=False)))
+        print("Class_id is prepared")
 
     def _prepare_filenames(self):
         """
@@ -135,8 +144,37 @@ class DatasetWrap:
             mylist = [caption.filename.replace(".txt", ".jpg") for caption in
                       self.voc_data.train.caption.fetch(bulk=False)]
         self.filenames = list(map(lambda x: os.path.join("train", Dataset.IMAGE_DIR, x), mylist))  # fill path names
+        print("Filenames is prepared")
 
-    def _prepare_embeddings(self, model):
+    @staticmethod
+    def clean(text):
+        import re
+        # remove punctuation, space, linefeed etc.
+        text = re.sub(r'[^\w\s\']', ' ', text)
+        text = re.sub(r'[ \n]+', ' ', text)
+        return text.strip().lower()
+
+    def create_fasttext_data(self, text):
+        with open("./temp_text_data.txt", "w", encoding="utf-8") as fp:
+            fp.write(self.clean(text))
+        return "./temp_text_data.txt"
+
+    def train_fasttext_model(self, caption_data, fasttext_cfg):
+        assert fasttext_cfg, "'fasttext_cfg' is required to train a fasttext model"
+        keys = ("epoch", "lr", "algorithm")
+        assert all(map(lambda x: x in keys,
+                       fasttext_cfg.keys())), "The following keys are required:{} in 'fasttext_cfg'".format(keys)
+        # train embedding model
+        import fasttext
+        data_path = self.create_fasttext_data(caption_data)
+        model = fasttext.train_unsupervised(data_path, fasttext_cfg.algorithm, dim=self.embedding_dim, thread=4,
+                                            epoch=fasttext_cfg.epoch, lr=fasttext_cfg.lr)
+        self.emb_model = model
+        self.emb_model_name = "fasttext_{}_{}".format(fasttext_cfg.algorithm, self.embedding_dim)
+        os.remove(data_path)
+        print("Fasttext model is trained")
+
+    def _prepare_embeddings(self, model, fasttext_cfg=None):
         """
             Each image typically contains one or many captions. In two ways we can save the caption
         embeddings into the pickle file. In as single instance or in bulk. Let, say we have 3 captions per image, and we
@@ -145,23 +183,33 @@ class DatasetWrap:
         [[emb11], [emb12], [emb13], [emb21], [emb22], [emb23]].
         """
         dataset_path = self.dataset_path
+        mydata = VOCDataset(dataset_path, caption_support=True)
+        if model is None:
+            # get caption data
+            caption_data = "".join(
+                set(list(map(lambda caption: caption.captions.strip().strip(".").strip(),
+                             mydata.train.caption.fetch(bulk=False)))))
+            # train model
+            self.train_fasttext_model(caption_data, fasttext_cfg)
+            model = self.emb_model
+
         if self.is_bulk:
             self.embeddings = [list(map(lambda cap: model.get_word_vector(cap.captions), caption_list)) for caption_list
-                               in
-                               VOCDataset(dataset_path, caption_support=True).train.caption.fetch(bulk=True)]
+                               in mydata.train.caption.fetch(bulk=True)]
         else:
             self.embeddings = [[model.get_word_vector(caption.captions)] for caption in
-                               VOCDataset(dataset_path, caption_support=True).train.caption.fetch(bulk=False)]
+                               mydata.train.caption.fetch(bulk=False)]
+        print("Text embeddings is prepared")
 
-    def prepare_dataset(self, model, model_name, emb_dim):
+    def prepare_dataset(self, fasttext_cfg=None):
         if self.class_ids:
             self._prepare_classes()
         self._prepare_filenames()
-        self._prepare_embeddings(model)
+        self._prepare_embeddings(self.emb_model, fasttext_cfg)
         generate_filename_pickle(str(self.dataset_path), self.filenames)
         if self.class_ids:
             generate_class_id_pickle(str(self.dataset_path), self.classes)
-        generate_text_embedding_pickle(str(self.dataset_path), self.embeddings, model_name, emb_dim)
+        generate_text_embedding_pickle(str(self.dataset_path), self.embeddings, self.emb_model_name, self.embedding_dim)
 
 
 def parse_args():
@@ -171,7 +219,10 @@ def parse_args():
                         default='my_data', type=str, )
     parser.add_argument('--bulk', dest='bulk', default=False, action="store_true")
     parser.add_argument('--class_id', dest='class_id', default=False, action="store_true")
-    parser.add_argument('--fasttext_vector', dest='fasttext_vector', type=str, default=None)
+    parser.add_argument('--fasttext_train_lr', dest='fasttext_train_lr', type=float, default=None)
+    parser.add_argument('--fasttext_train_algo', dest='fasttext_train_algo', type=str, default=None,
+                        choices=['skipgram', 'cbow'])
+    parser.add_argument('--fasttext_train_epoch', dest='fasttext_train_epoch', type=int, default=None)
     parser.add_argument('--fasttext_model', dest='fasttext_model', type=str, default=None)
     parser.add_argument('--emb_dim', dest='emb_dim', type=int, default=300)
     parser.add_argument('--sqlite', dest='sqlite',
@@ -184,11 +235,23 @@ def parse_args():
     parser.add_argument('--dataroot', dest="dataroot", type=str,
                         help="This is a path to a image dataset to copy images while creating dataset using sqlite."
                              "The dataset format is default to PascalVOC format.")
-    # parser.add_argument('--gpu', dest='gpu_id', type=str, default='0')
-    # parser.add_argument('--manualSeed', type=int, help='manual seed', default=47)
     _args = parser.parse_args()
     pprint(_args)
     return _args
+
+
+def generate_dataset(args):
+    # creating object to generate compatible pickle files for StackGAN
+    # prepare fasttext training configuration
+    fasttext_cfg = edict()
+    fasttext_cfg.epoch = args.fasttext_train_epoch
+    fasttext_cfg.lr = args.fasttext_train_lr
+    fasttext_cfg.algorithm = args.fasttext_train_algo
+    # initialize dataset
+    vdw = DatasetWrap(args.data_dir, args.bulk, args.class_id,
+                      fasttext_model_path=args.fasttext_model,
+                      embedding_dimension=args.emb_dim)
+    vdw.prepare_dataset(fasttext_cfg)
 
 
 def from_custom_dataset():
@@ -196,10 +259,8 @@ def from_custom_dataset():
     Dataset.IMAGE_DIR = "images"
     Dataset.ANNO_DIR = "Annotations"
     Dataset.CAPTION_DIR = "texts"
-    emb_model, emb_model_name, emb_dimension = get_embedding_model(args.fasttext_vector, args.fasttext_model,
-                                                                   emb_dim=args.emb_dim)
-    vdw = DatasetWrap(args.data_dir, args.bulk, args.class_id)
-    vdw.prepare_dataset(emb_model, emb_model_name, emb_dimension)
+    # generate dataset
+    generate_dataset(args)
 
 
 class Caption:
@@ -321,12 +382,8 @@ def from_sqlite():
     # For generating dataset
     Dataset.IMAGE_DIR = "JPEGImages"
     Dataset.CAPTION_DIR = "texts"
-    # loading embedding
-    emb_model, emb_model_name, emb_dimension = get_embedding_model(args.fasttext_vector, args.fasttext_model,
-                                                                   emb_dim=args.emb_dim)
-    # creating object to generate compatible pickle files for StackGAN
-    vdw = DatasetWrap(args.data_dir, args.bulk, args.class_id)
-    vdw.prepare_dataset(emb_model, emb_model_name, emb_dimension)
+    # generate dataset
+    generate_dataset(args)
 
 
 if __name__ == '__main__':

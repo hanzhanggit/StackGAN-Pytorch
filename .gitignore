@@ -4,3 +4,4 @@ code/miscc/*.pyc
 backup
 .DS_Store
 .idea/
+/.ipynb_checkpoints/
