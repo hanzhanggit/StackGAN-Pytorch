@@ -1,7 +1,7 @@
 CONFIG_NAME: 'stage_2'
 
-DATASET_NAME: 'sixray_1347_cap_fasttext300D'
-EMBEDDING_TYPE: 'embeddings_fasttext_skipgram_300_300D.pickle'
+DATASET_NAME: 'sixray_1347_cap'
+EMBEDDING_TYPE: 'embeddings_cc.en.300.bin_300D.pickle'
 GPU_ID: '0,1'
 Z_DIM: 100
 DATA_DIR: 'data/sixray_500'
@@ -13,7 +13,7 @@ TRAIN:
   FLAG: True
   BATCH_SIZE: 6
   BATCH_DROP_LAST: True
-  MAX_EPOCH: 1000
+  MAX_EPOCH: 500
   LR_DECAY_EPOCH: 20
   SNAPSHOT_INTERVAL: 50
   DISCRIMINATOR_LR: 0.0002

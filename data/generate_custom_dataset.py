@@ -393,5 +393,6 @@ if __name__ == '__main__':
 """ UBUNTU
 sqlite3 -header -csv "C:\\Users\\dndlssardar\\Downloads\\tip_gai_22052023_1743.db" "SELECT * FROM caption" > caption.csv
 python data/generate_custom_dataset.py --data_dir data/sixray_sample --emb_dim 300 --fasttext_model /mnt/c/Users/dndlssardar/Downloads/Fasttext/cc.en.300.bin
+python data/generate_custom_dataset.py --data_dir data/sixray_500 --fasttext_model /data/fasttext/cc.en.300.bin  --sqlite /data/sixray_caption_db/<tip_gai.db> --clean --copy_images --dataroot /data/Sixray_easy/
 python data/generate_custom_dataset.py --data_dir data/sixray_500 --fasttext_model /mnt/c/Users/dndlssardar/Downloads/Fasttext/cc.en.300.bin --sqlite data/tip_gai.db --clean --copy_images --dataroot "/mnt/c/Users/dndlssardar/OneDrive - Smiths Group/Documents/Projects/Dataset/Sixray_easy"
 """
