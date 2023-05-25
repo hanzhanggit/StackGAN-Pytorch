@@ -24,6 +24,7 @@ def parse_args():
     parser.add_argument('--cfg', dest='cfg_file',
                         help='optional config file',
                         default='cfg/coco_s1.yml', type=str)
+    parser.add_argument('--test_phase', dest='test_phase', default=False, action='store_true')
     parser.add_argument('--gpu', dest='gpu_id', type=str, default='0')
     parser.add_argument('--data_dir', dest='data_dir', type=str, default='')
     parser.add_argument('--STAGE1_G', dest='STAGE1_G', type=str, default='')
@@ -44,6 +45,8 @@ if __name__ == "__main__":
         cfg.DATA_DIR = args.data_dir
     if args.STAGE1_G != '':
         cfg.STAGE1_G = args.STAGE1_G
+    if args.test_phase == "test":
+        cfg.TRAIN.FLAG = False
     print('Using config:')
     pprint.pprint(cfg)
     if args.manualSeed is None:
@@ -59,6 +62,11 @@ if __name__ == "__main__":
     if cfg.STAGE == 1:
         with open("train_stage2.sh", "w") as fp:
             fp.write("python code/main.py --cfg {} --STAGE1_G {}\n".format(
+                args.cfg_file.replace("s1", "s2"),
+                os.path.join(output_dir, "Model", "netG_epoch_{}.pth".format(cfg.TRAIN.MAX_EPOCH - 1))
+            ))
+        with open("test_stage2.sh", "w") as fp:
+            fp.write("python code/main.py --test_phase --cfg {} --STAGE1_G {}\n".format(
                 args.cfg_file.replace("s1", "s2"),
                 os.path.join(output_dir, "Model", "netG_epoch_{}.pth".format(cfg.TRAIN.MAX_EPOCH - 1))
             ))
@@ -85,6 +93,7 @@ if __name__ == "__main__":
         algo = GANTrainer(output_dir)
         algo.train(dataloader, cfg.STAGE)
     else:
-        datapath = '%s/test/val_captions.t7' % cfg.DATA_DIR
-        algo = GANTrainer(output_dir)
-        algo.sample(datapath, cfg.STAGE)
+        datapath = os.path.join(cfg.DATA_DIR, cfg.EMBEDDING_TYPE)
+        if os.path.isfile(datapath):
+            algo = GANTrainer(output_dir)
+            algo.sample(datapath, cfg.STAGE)

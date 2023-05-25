@@ -3,10 +3,10 @@ import os.path
 import pathlib
 import pickle
 import shutil
-import time
 from collections import defaultdict
 from pprint import pprint
 from easydict import EasyDict as edict
+from tqdm import tqdm
 
 from voc_tools.constants import VOC_IMAGES
 from voc_tools.reader import list_dir, from_file
@@ -55,7 +55,7 @@ def get_embedding_model(fasttext_model_path=None, emb_dim=300):
     return model, model_name, emb_dim
 
 
-def generate_text_embedding_pickle(dataset_path, embeddings, model_name, emb_dim):
+def generate_text_embedding_pickle(dataset_path, embeddings, model_name, emb_dim, mode="train"):
     """
     Generate and save caption embedding into a pickle file.
     Args:
@@ -63,11 +63,13 @@ def generate_text_embedding_pickle(dataset_path, embeddings, model_name, emb_dim
         embeddings: Prepared caption embeddings
         model_name: Model name which is used to prepare the embeddings
         emb_dim: Final embedding dimension
+        mode: Generate embeddings for training or testing
     """
+    assert mode in ("train", "test"), mode
     dataset_path = pathlib.Path(dataset_path)
     assert os.path.exists(str(dataset_path))
     # save as pickle file
-    pickle_path = str(dataset_path / "train" / "embeddings_{}_{}D.pickle".format(model_name, emb_dim))
+    pickle_path = str(dataset_path / mode / "embeddings_{}_{}D.pickle".format(model_name, emb_dim))
     with open(pickle_path, 'wb') as fpp:
         pickle.dump(embeddings, fpp)
         print("'{}' is created with {} entries".format(pickle_path, len(embeddings)))
@@ -95,13 +97,14 @@ def generate_filename_pickle(dataset_path, filenames):
 
 class DatasetWrap:
     def __init__(self, dataset_path, bulk=False, class_ids=False, fasttext_model_path=None,
-                 embedding_dimension=300) -> None:
+                 embedding_dimension=300, test_captions=None) -> None:
         dataset_path = pathlib.Path(dataset_path)
         assert os.path.exists(str(dataset_path))
         self.dataset_path = pathlib.Path(dataset_path)
         self.is_bulk = bulk
         self.class_ids = class_ids
         self.embedding_dim = embedding_dimension
+        self.test_captions = test_captions
         if fasttext_model_path is not None:
             # loading embedding
             self.emb_model, self.emb_model_name, _ = get_embedding_model(fasttext_model_path, embedding_dimension)
@@ -171,6 +174,7 @@ class DatasetWrap:
                                             epoch=fasttext_cfg.epoch, lr=fasttext_cfg.lr)
         self.emb_model = model
         self.emb_model_name = "fasttext_{}_{}".format(fasttext_cfg.algorithm, self.embedding_dim)
+        # remove temporary files
         os.remove(data_path)
         print("Fasttext model is trained")
 
@@ -200,6 +204,8 @@ class DatasetWrap:
             self.embeddings = [[model.get_word_vector(caption.captions)] for caption in
                                mydata.train.caption.fetch(bulk=False)]
         print("Text embeddings is prepared")
+        if self.test_captions is not None:
+            self.test_embeddings = list(map(lambda cap: model.get_word_vector(cap), self.test_captions))
 
     def prepare_dataset(self, fasttext_cfg=None):
         if self.class_ids:
@@ -210,13 +216,17 @@ class DatasetWrap:
         if self.class_ids:
             generate_class_id_pickle(str(self.dataset_path), self.classes)
         generate_text_embedding_pickle(str(self.dataset_path), self.embeddings, self.emb_model_name, self.embedding_dim)
+        if self.test_captions is not None:
+            generate_text_embedding_pickle(str(self.dataset_path), self.embeddings, self.emb_model_name,
+                                           self.embedding_dim, mode="test")
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a GAN network')
-    parser.add_argument('--data_dir', dest='data_dir',
-                        help='Path to dataset directory.',
+    parser.add_argument('--data_dir', dest='data_dir', help='Path to dataset directory.',
                         default='my_data', type=str, )
+    parser.add_argument('--test_data_file', dest='test_data_file', help='A text file contains unseen captions to test',
+                        default='', type=str, )
     parser.add_argument('--bulk', dest='bulk', default=False, action="store_true")
     parser.add_argument('--class_id', dest='class_id', default=False, action="store_true")
     parser.add_argument('--fasttext_train_lr', dest='fasttext_train_lr', type=float, default=None)
@@ -247,10 +257,15 @@ def generate_dataset(args):
     fasttext_cfg.epoch = args.fasttext_train_epoch
     fasttext_cfg.lr = args.fasttext_train_lr
     fasttext_cfg.algorithm = args.fasttext_train_algo
+    # read the test captions
+    test_captions = None
+    if os.path.isfile(args.test_data_file):
+        with open(args.test_data_file) as fp:
+            test_captions = fp.readlines()
     # initialize dataset
     vdw = DatasetWrap(args.data_dir, args.bulk, args.class_id,
                       fasttext_model_path=args.fasttext_model,
-                      embedding_dimension=args.emb_dim)
+                      embedding_dimension=args.emb_dim, test_captions=test_captions)
     vdw.prepare_dataset(fasttext_cfg)
 
 
@@ -334,9 +349,11 @@ class SQLiteDataWrap:
         # taking DB cursor and running queries
         print("Quering dataset form SQLITE...")
         curr = self.conn.cursor()
+        count = curr.execute("SELECT count(*) FROM caption").fetchone()[0]
         dataset = curr.execute("SELECT * FROM caption")
         print("Creating dataset form SQLITE...", end="")
-        for data in dataset:
+        for idx, data in enumerate(dataset):
+            print("\r{}/{} ".format(idx, (count - 1)), end="\b")
             caption = Caption(data)
             if copy_images:
                 # copying images
