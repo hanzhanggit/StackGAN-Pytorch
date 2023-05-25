@@ -1,7 +1,7 @@
 CONFIG_NAME: 'stage_2'
 
-DATASET_NAME: 'sixray_1830_fft'
-EMBEDDING_TYPE: 'embeddings_fasttext_skipgram_300_300D.pickle'
+DATASET_NAME: 'sixray_1867_ftt_1000D_skipgram'
+EMBEDDING_TYPE: 'embeddings_fasttext_skipgram_1000_1000D.pickle'
 GPU_ID: '0,1'
 Z_DIM: 100
 DATA_DIR: 'data/sixray_500'
@@ -33,4 +33,4 @@ GAN:
   R_NUM: 2
 
 TEXT:
-  DIMENSION: 300
+  DIMENSION: 1000

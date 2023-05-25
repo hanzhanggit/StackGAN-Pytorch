@@ -6,7 +6,6 @@ import shutil
 from collections import defaultdict
 from pprint import pprint
 from easydict import EasyDict as edict
-from tqdm import tqdm
 
 from voc_tools.constants import VOC_IMAGES
 from voc_tools.reader import list_dir, from_file
