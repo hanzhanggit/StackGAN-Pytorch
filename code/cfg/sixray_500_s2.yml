@@ -1,14 +1,14 @@
 CONFIG_NAME: 'stage_2'
 
-DATASET_NAME: 'sixray_1347_cap'
-EMBEDDING_TYPE: 'embeddings_cc.en.300.bin_300D.pickle'
+DATASET_NAME: 'sixray_1830_fft'
+EMBEDDING_TYPE: 'embeddings_fasttext_skipgram_300_300D.pickle'
 GPU_ID: '0,1'
 Z_DIM: 100
 DATA_DIR: 'data/sixray_500'
 IMSIZE: 256
 WORKERS: 4
 STAGE: 2
-STAGE1_G: 'output/sixray_1347_cap_fasttext300D_stage_1_2023_05_23_15_15_11/Model/netG_epoch_1000.pth'
+STAGE1_G: ''
 TRAIN:
   FLAG: True
   BATCH_SIZE: 6

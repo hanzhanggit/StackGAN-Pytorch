@@ -1,7 +1,7 @@
 CONFIG_NAME: 'stage_1'
 
-DATASET_NAME: 'sixray_1347_cap'
-EMBEDDING_TYPE: 'embeddings_cc.en.300.bin_300D.pickle'
+DATASET_NAME: 'sixray_1830_fft'
+EMBEDDING_TYPE: 'embeddings_fasttext_skipgram_300_300D.pickle'
 GPU_ID: '0,1'
 Z_DIM: 100
 DATA_DIR: 'data/sixray_500'

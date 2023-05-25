@@ -25,6 +25,8 @@ def parse_args():
                         help='optional config file',
                         default='cfg/coco_s1.yml', type=str)
     parser.add_argument('--test_phase', dest='test_phase', default=False, action='store_true')
+    parser.add_argument('--NET_G', dest='NET_G', default='', help="Path to generator for testing")
+    parser.add_argument('--NET_D', dest='NET_D', default='', help="Path to discriminator for testing")
     parser.add_argument('--gpu', dest='gpu_id', type=str, default='0')
     parser.add_argument('--data_dir', dest='data_dir', type=str, default='')
     parser.add_argument('--STAGE1_G', dest='STAGE1_G', type=str, default='')
@@ -45,31 +47,59 @@ if __name__ == "__main__":
         cfg.DATA_DIR = args.data_dir
     if args.STAGE1_G != '':
         cfg.STAGE1_G = args.STAGE1_G
-    if args.test_phase == "test":
+    if args.test_phase:
         cfg.TRAIN.FLAG = False
+        if args.NET_G:
+            cfg.TRAIN.FINETUNE.FLAG = True
+            cfg.TRAIN.FINETUNE.NET_G = args.NET_G
+            cfg.TRAIN.FINETUNE.NET_D = args.NET_D
     print('Using config:')
     pprint.pprint(cfg)
     if args.manualSeed is None:
         args.manualSeed = random.randint(1, 10000)
     random.seed(args.manualSeed)
     torch.manual_seed(args.manualSeed)
+    phase = "test" if args.test_phase else "train"
     if cfg.CUDA:
         torch.cuda.manual_seed_all(args.manualSeed)
     now = datetime.datetime.now(dateutil.tz.tzlocal())
     timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
-    output_dir = 'output/%s_%s_%s' % (cfg.DATASET_NAME, cfg.CONFIG_NAME, timestamp)
+    output_dir = 'output/%s_%s_%s_%s' % (cfg.DATASET_NAME, cfg.CONFIG_NAME, phase, timestamp)
     print("Output:", output_dir)
     if cfg.STAGE == 1:
-        with open("train_stage2.sh", "w") as fp:
-            fp.write("python code/main.py --cfg {} --STAGE1_G {}\n".format(
-                args.cfg_file.replace("s1", "s2"),
-                os.path.join(output_dir, "Model", "netG_epoch_{}.pth".format(cfg.TRAIN.MAX_EPOCH - 1))
-            ))
-        with open("test_stage2.sh", "w") as fp:
-            fp.write("python code/main.py --test_phase --cfg {} --STAGE1_G {}\n".format(
-                args.cfg_file.replace("s1", "s2"),
-                os.path.join(output_dir, "Model", "netG_epoch_{}.pth".format(cfg.TRAIN.MAX_EPOCH - 1))
-            ))
+        # STAGE-1
+        if cfg.TRAIN.FLAG:
+            # STAGE-1 TRAINING
+            # prepare script for stage-2 training
+            with open("train_stage2.sh", "w") as fp:
+                fp.write("python code/main.py --cfg {} --manualSeed 47 --STAGE1_G {}\n".format(
+                    args.cfg_file.replace("s1", "s2"),
+                    os.path.join(output_dir, "Model", "netG_epoch_{}.pth".format(cfg.TRAIN.MAX_EPOCH - 1))
+                ))
+            # prepare script for stage-1 testing
+            with open("test_stage1.sh", "w") as fp:
+                fp.write("python code/main.py --test_phase --cfg {} --manualSeed 47 --NET_G {} --NET_D {}\n".format(
+                    args.cfg_file,
+                    os.path.join(output_dir, "Model", "netG_epoch_{}.pth".format(cfg.TRAIN.MAX_EPOCH - 1)),
+                    os.path.join(output_dir, "Model", "netD_epoch_last.pth"),
+                ))
+        else:
+            # STAGE-1 TESTING
+            ...
+    else:
+        # STAGE-2
+        if cfg.TRAIN.FLAG:
+            # STAGE-2 TRAINING
+            # prepare script for stage-2 testing
+            with open("test_stage2.sh", "w") as fp:
+                fp.write("python code/main.py --test_phase --manualSeed 47 --cfg {} --NET_G {} --NET_D {}\n".format(
+                    args.cfg_file,
+                    os.path.join(output_dir, "Model", "netG_epoch_{}.pth".format(cfg.TRAIN.MAX_EPOCH - 1)),
+                    os.path.join(output_dir, "Model", "netD_epoch_last.pth"),
+                ))
+        else:
+            # STAGE-2 TESTING
+            ...
 
     num_gpu = len(cfg.GPU_ID.split(','))
     if cfg.TRAIN.FLAG:
@@ -93,7 +123,7 @@ if __name__ == "__main__":
         algo = GANTrainer(output_dir)
         algo.train(dataloader, cfg.STAGE)
     else:
-        datapath = os.path.join(cfg.DATA_DIR, cfg.EMBEDDING_TYPE)
+        datapath = os.path.join(cfg.DATA_DIR, "test", cfg.EMBEDDING_TYPE)
         if os.path.isfile(datapath):
             algo = GANTrainer(output_dir)
-            algo.sample(datapath, cfg.STAGE)
+            algo.sample(datapath, output_dir, cfg.STAGE)

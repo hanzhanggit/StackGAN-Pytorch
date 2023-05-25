@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import pickle
 from pprint import pprint
 
 from six.moves import range
@@ -173,6 +174,8 @@ class GANTrainer(object):
                 ######################################################
                 noise.data.normal_(0, 1)
                 inputs = (txt_embedding, noise)
+                assert len(txt_embedding.shape) == len(noise.shape) == 2, "2D tensors are expected, Got {} & {}".format(
+                    txt_embedding.shape, noise.shape)
                 _, fake_imgs, mu, logvar = nn.parallel.data_parallel(netG, inputs, self.gpus)
 
                 ############################
@@ -254,23 +257,29 @@ class GANTrainer(object):
         self.summary_writer.flush()
         self.summary_writer.close()
 
-    def sample(self, datapath, stage=1):
+    def sample(self, datapath, output_dir, stage):
         if stage == 1:
             netG, _ = self.load_network_stageI()
-        else:
+        elif stage == 2:
             netG, _ = self.load_network_stageII()
+        else:
+            raise ValueError("Stage must me 1 or 2 but {} given".format(stage))
         netG.eval()
 
         # Load text embeddings generated from the encoder
-        t_file = torchfile.load(datapath)
-        captions_list = t_file.raw_txt
-        embeddings = np.concatenate(t_file.fea_txt, axis=0)
-        num_embeddings = len(captions_list)
+        with open(datapath, 'rb') as f:
+            embeddings = pickle.load(f, encoding="bytes")
+            embeddings = np.array(embeddings)
+            # embedding_shape = [embeddings.shape[-1]]
+            print('test data embeddings: ', embeddings.shape)
+        # captions_list = t_file.raw_txt
+        # embeddings = np.concatenate(t_file.fea_txt, axis=0)
+        num_embeddings = len(embeddings)
         print('Successfully load sentences from: ', datapath)
         print('Total number of sentences:', num_embeddings)
         print('num_embeddings:', num_embeddings, embeddings.shape)
         # path to save generated samples
-        save_dir = cfg.NET_G[:cfg.NET_G.find('.pth')]
+        save_dir = output_dir + "/generated"
         mkdir_p(save_dir)
 
         batch_size = np.minimum(num_embeddings, self.batch_size)
@@ -297,8 +306,9 @@ class GANTrainer(object):
             ######################################################
             noise.data.normal_(0, 1)
             inputs = (txt_embedding, noise)
-            _, fake_imgs, mu, logvar = \
-                nn.parallel.data_parallel(netG, inputs, self.gpus)
+            assert len(txt_embedding.shape) == len(noise.shape) == 2, "2D tensors are expected, Got {} & {}".format(
+                txt_embedding.shape, noise.shape)
+            _, fake_imgs, mu, logvar = nn.parallel.data_parallel(netG, inputs, self.gpus)
             for i in range(batch_size):
                 save_name = '%s/%d.png' % (save_dir, count + i)
                 im = fake_imgs[i].data.cpu().numpy()

@@ -203,9 +203,10 @@ class DatasetWrap:
         else:
             self.embeddings = [[model.get_word_vector(caption.captions)] for caption in
                                mydata.train.caption.fetch(bulk=False)]
-        print("Text embeddings is prepared")
+        print("Text embeddings is prepared for training")
         if self.test_captions is not None:
             self.test_embeddings = list(map(lambda cap: model.get_word_vector(cap), self.test_captions))
+            print("Text embeddings is prepared for testing")
 
     def prepare_dataset(self, fasttext_cfg=None):
         if self.class_ids:
@@ -217,7 +218,7 @@ class DatasetWrap:
             generate_class_id_pickle(str(self.dataset_path), self.classes)
         generate_text_embedding_pickle(str(self.dataset_path), self.embeddings, self.emb_model_name, self.embedding_dim)
         if self.test_captions is not None:
-            generate_text_embedding_pickle(str(self.dataset_path), self.embeddings, self.emb_model_name,
+            generate_text_embedding_pickle(str(self.dataset_path), self.test_embeddings, self.emb_model_name,
                                            self.embedding_dim, mode="test")
 
 
@@ -351,9 +352,9 @@ class SQLiteDataWrap:
         curr = self.conn.cursor()
         count = curr.execute("SELECT count(*) FROM caption").fetchone()[0]
         dataset = curr.execute("SELECT * FROM caption")
-        print("Creating dataset form SQLITE...", end="")
+        print("Creating dataset form SQLITE...", )
         for idx, data in enumerate(dataset):
-            print("\r{}/{} ".format(idx, (count - 1)), end="\b")
+            print("\r{}/{} {}% ".format(idx, (count - 1), round((idx / (count - 1) * 100.), 2)), end="\b")
             caption = Caption(data)
             if copy_images:
                 # copying images

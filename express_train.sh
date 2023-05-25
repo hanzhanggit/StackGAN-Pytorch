@@ -1,5 +1,6 @@
 #!/usr/bin/bash
 # sh express_train.sh "data/sixray_500"  "/data/fasttext/cc.en.300.bin"  "/data/Sixray_easy"  /data/sixray_caption_db/<tip_gai.db>
+# sh express_train.sh "data/sixray_500" /mnt/c/Users/dndlssardar/Downloads/Fasttext/cc.en.300.bin /mnt/c/Users/dndlssardar/OneDrive\ -\ Smiths\ Group/Documents/Projects/Dataset/Sixray_easy/ data/tip_gai_20230525_1036.db
 # Argument 1 must be a path to an sqlite database
 export DATA_DIR="$1"  # data/sixray_500
 export LM="$2"        # /data/fasttext/cc.en.300.bin
