@@ -78,9 +78,9 @@ if __name__ == "__main__":
                 ))
             # prepare script for stage-1 testing
             with open("test_stage1.sh", "w") as fp:
-                fp.write("python code/main.py --test_phase --cfg {} --manualSeed 47 --NET_G {} --NET_D {}\n".format(
+                fp.write("python code/main.py --test_phase --manualSeed 47 --cfg {} --NET_G {} --NET_D {}\n".format(
                     args.cfg_file,
-                    os.path.join(output_dir, "Model", "netG_epoch_{}.pth".format(cfg.TRAIN.MAX_EPOCH - 1)),
+                    os.path.join(output_dir, "Model", "netG_epoch_{}.pth".format(cfg.TRAIN.MAX_EPOCH)),
                     os.path.join(output_dir, "Model", "netD_epoch_last.pth"),
                 ))
         else:
@@ -94,7 +94,7 @@ if __name__ == "__main__":
             with open("test_stage2.sh", "w") as fp:
                 fp.write("python code/main.py --test_phase --manualSeed 47 --cfg {} --NET_G {} --NET_D {}\n".format(
                     args.cfg_file,
-                    os.path.join(output_dir, "Model", "netG_epoch_{}.pth".format(cfg.TRAIN.MAX_EPOCH - 1)),
+                    os.path.join(output_dir, "Model", "netG_epoch_{}.pth".format(cfg.TRAIN.MAX_EPOCH)),
                     os.path.join(output_dir, "Model", "netD_epoch_last.pth"),
                 ))
         else:

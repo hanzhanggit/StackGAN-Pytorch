@@ -114,7 +114,7 @@ def save_model(netG, netD, epoch, model_dir):
         '%s/netG_epoch_%d.pth' % (model_dir, epoch))
     torch.save(
         netD.state_dict(),
-        '%s/netD_epoch_last.pth' % (model_dir))
+        '%s/netD_epoch_last.pth' % model_dir)
     print('Save G/D models')
 
 

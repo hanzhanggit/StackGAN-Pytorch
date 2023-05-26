@@ -169,7 +169,7 @@ class GANTrainer(object):
                     real_imgs = real_imgs.cuda()
                     txt_embedding = txt_embedding.cuda()
 
-                #######################################################
+                ######################################################
                 # (2) Generate fake images
                 ######################################################
                 noise.data.normal_(0, 1)
@@ -178,7 +178,7 @@ class GANTrainer(object):
                     txt_embedding.shape, noise.shape)
                 _, fake_imgs, mu, logvar = nn.parallel.data_parallel(netG, inputs, self.gpus)
 
-                ############################
+                ###########################
                 # (3) Update D network
                 ###########################
                 netD.zero_grad()
@@ -187,7 +187,7 @@ class GANTrainer(object):
                                                                                     mu, self.gpus)
                 errD.backward()
                 optimizerD.step()
-                ############################
+                ###########################
                 # (2) Update G network
                 ###########################
                 netG.zero_grad()
