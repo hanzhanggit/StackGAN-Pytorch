@@ -1,4 +1,7 @@
 from __future__ import print_function
+
+import PIL
+import numpy as np
 import torch
 import torchvision.transforms as transforms
 
@@ -9,7 +12,9 @@ import sys
 import pprint
 import datetime
 import dateutil.tz
+from PIL.Image import Image
 from torch.utils.data import DataLoader
+from torchvision.transforms.transforms import _setup_size
 
 dir_path = (os.path.abspath(os.path.join(os.path.realpath(__file__), './.')))
 sys.path.append(dir_path)
@@ -33,6 +38,56 @@ def parse_args():
     parser.add_argument('--manualSeed', type=int, help='manual seed', default=47)
     args = parser.parse_args()
     return args
+
+
+def fit_image_to_canvas(image: Image, canvas_width, canvas_height, background=255) -> Image:
+    # Get the dimensions of the image
+    image_height, image_width = image.size
+
+    # Calculate the aspect ratio of the image
+    image_aspect_ratio = image_width / float(image_height)
+
+    # Calculate the aspect ratio of the canvas
+    canvas_aspect_ratio = canvas_width / float(canvas_height)
+
+    # Calculate the new dimensions of the image to fit the canvas
+    if canvas_aspect_ratio > image_aspect_ratio:
+        new_width = canvas_height * image_aspect_ratio
+        new_height = canvas_height
+    else:
+        new_width = canvas_width
+        new_height = canvas_width / image_aspect_ratio
+
+    # Resize the image to the new dimensions
+    image = image.resize((int(new_width), int(new_height)), PIL.Image.BICUBIC)
+
+    # Create a blank canvas of the specified size
+    canvas = np.zeros((int(canvas_height), int(canvas_width), 3), dtype=np.uint8)
+    canvas[:, :, :] = background
+
+    # Calculate the position to paste the resized image on the canvas
+    x = int((canvas_width - new_width) / 2)
+    y = int((canvas_height - new_height) / 2)
+
+    # Paste the resized image onto the canvas
+    canvas[y:y + int(new_height), x:x + int(new_width)] = np.array(image)
+
+    return PIL.Image.fromarray(canvas)
+
+
+class AspectResize(torch.nn.Module):
+    """
+   Resize image while keeping the aspect ratio.
+   Extra parts will be covered with 255(white) color value
+   """
+
+    def __init__(self, size):
+        super().__init__()
+        self.size = tuple(_setup_size(size, error_msg="Please provide only two dimensions (h, w) for size."))
+
+    def forward(self, image: Image) -> Image:
+        image = fit_image_to_canvas(image, self.size[0], self.size[1], 255)
+        return image
 
 
 if __name__ == "__main__":
@@ -105,7 +160,7 @@ if __name__ == "__main__":
     if cfg.TRAIN.FLAG:
         # prepare image transforms
         image_transform = transforms.Compose([
-            transforms.RandomCrop(cfg.IMSIZE),
+            transforms.RandomCrop(cfg.IMSIZE) if False else AspectResize(cfg.IMSIZE),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
