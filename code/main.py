@@ -42,7 +42,7 @@ def parse_args():
 
 def fit_image_to_canvas(image: Image, canvas_width, canvas_height, background=255) -> Image:
     # Get the dimensions of the image
-    image_height, image_width = image.size
+    image_width, image_height = image.size
 
     # Calculate the aspect ratio of the image
     image_aspect_ratio = image_width / float(image_height)
