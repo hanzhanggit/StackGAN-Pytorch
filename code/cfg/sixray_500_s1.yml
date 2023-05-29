@@ -1,7 +1,7 @@
 CONFIG_NAME: 'stage_1'
 
-DATASET_NAME: 'sixray_2500_ftt_1000D_bow'
-EMBEDDING_TYPE: 'embeddings_fasttext_bow_1000_1000D.pickle'
+DATASET_NAME: 'sixray_2500_ftt_1000D_cbow'
+EMBEDDING_TYPE: 'embeddings_fasttext_cbow_1000_1000D.pickle'
 GPU_ID: '0,1'
 Z_DIM: 100
 DATA_DIR: 'data/sixray_500'
