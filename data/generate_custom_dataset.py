@@ -368,7 +368,7 @@ class SQLiteDataWrap:
                 if caption.caption + "\n" in lines:
                     statistics[caption.filename]['duplicate'] += 1
                     statistics["caption"]['duplicate'] += 1
-                elif len(caption.caption.split(" ")) < 5:
+                elif len(caption.caption.split(" ")) < 2:
                     statistics[caption.filename]['faulty'] += 1
                     statistics["caption"]['faulty'] += 1
                 else:
