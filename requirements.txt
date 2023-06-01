@@ -7,3 +7,5 @@ torchfile==0.1.0
 express-pascal-voc-tools==0.7.3
 chardet
 pyyaml
+langchain
+openai
