@@ -1,7 +1,7 @@
 CONFIG_NAME: 'stage_2'
 
-DATASET_NAME: 'sixray_2500_ftt_1024D_cbow_nocrop'
-EMBEDDING_TYPE: 'embeddings_fasttext_cbow_1024_1024D.pickle'
+DATASET_NAME: 'sixray_2500_ftt_1024D_skipgram_nocrop'
+EMBEDDING_TYPE: 'embeddings_fasttext_skipgram_1024_1024D.pickle'
 GPU_ID: '0,1'
 Z_DIM: 100
 DATA_DIR: 'data/sixray_500'
@@ -13,7 +13,7 @@ TRAIN:
   FLAG: True
   BATCH_SIZE: 6
   BATCH_DROP_LAST: True
-  MAX_EPOCH: 300
+  MAX_EPOCH: 1000
   LR_DECAY_EPOCH: 20
   SNAPSHOT_INTERVAL: 5
   DISCRIMINATOR_LR: 0.0002

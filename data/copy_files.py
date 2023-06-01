@@ -1,9 +1,11 @@
+import csv
 import os
 import pathlib
 import shutil
 
 import numpy as np
 from PIL.Image import Resampling
+from openpyxl.styles import PatternFill
 from voc_tools.constants import VOC_IMAGES
 from voc_tools.reader import list_dir
 from voc_tools.utils import VOCDataset
@@ -49,10 +51,11 @@ def copy():
         print("Copy done.")
 
 
-def generate_excel_with_thumbnails(image_paths, save_path):
+def generate_excel_with_thumbnails(image_paths, save_path, file_names_to_highlight=()):
     # Create a new workbook and get the active sheet
     workbook = Workbook()
     sheet = workbook.active
+    os.makedirs("./temp_files", exist_ok=True)
 
     # Set the column widths to accommodate the thumbnails and file names
     sheet.column_dimensions['A'].width = 20
@@ -61,25 +64,50 @@ def generate_excel_with_thumbnails(image_paths, save_path):
     # Set the headers for the columns
     sheet['A1'] = 'Thumbnail'
     sheet['B1'] = 'File Name'
+    sheet['C1'] = 'Is in 500 collection?'
+    sheet['D1'] = 'Map File Name'
 
     # Iterate through the image paths and insert thumbnails and file names into the sheet
     for i, image_path in enumerate(image_paths):
-        img = Image(image_path)
-        img.width = 80  # Set the width of the thumbnail
-        img.height = 80  # Set the height of the thumbnail
+        # Open the image using PIL
+        img = PILImage.open(image_path)
 
-        # Calculate the cell positions for each thumbnail and file name (starting from row 2)
-        thumbnail_cell_position = f'A{i + 2}'
-        filename_cell_position = f'B{i + 2}'
+        # Calculate the aspect ratio to maintain the original proportions
+        aspect_ratio = img.width / img.height
+
+        # Set the desired width for the thumbnail (you can adjust this value)
+        thumbnail_width = 100
+
+        # Calculate the corresponding height to maintain the aspect ratio
+        thumbnail_height = int(thumbnail_width / aspect_ratio)
+
+        # Resize the image to the desired thumbnail size
+        img = img.resize((thumbnail_width, thumbnail_height), Resampling.LANCZOS)
+
+        # Convert the PIL image to an openpyxl image
+        temp_path = "./temp_files/temp_" + os.path.basename(image_path)
+        img.save(temp_path)
+        img = Image(temp_path)
 
         # Add the thumbnail image and file name to the sheet
-        sheet.add_image(img, thumbnail_cell_position)
-        sheet[filename_cell_position] = os.path.basename(image_path)  # Extract the file name from the image path
+        filename = os.path.basename(image_path)
+        sheet.add_image(img, f'A{i + 2}')
+        sheet[f'B{i + 2}'] = filename  # Extract the file name from the image path
+        if filename in file_names_to_highlight:
+            highlight_fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+            sheet[f'A{i + 2}'].fill = highlight_fill
+            sheet[f'B{i + 2}'].fill = highlight_fill
+            sheet[f'C{i + 2}'].fill = highlight_fill
+            sheet[f'C{i + 2}'] = 1
+        else:
+            sheet[f'C{i + 2}'] = 0
         print(".", end="")
     print("Saving into file...", end="")
     # Save the workbook as an Excel file
     workbook.save(save_path)
-    print("Saved")
+    print("Cleaning...", end="")
+    shutil.rmtree("./temp_files", ignore_errors=True, onerror=lambda: print("Cleaning failed", end=""))
+    print("File Saved")
 
 
 def generate_excel_with_thumbnails_pil(image_paths, save_path, mark_file_list, caption_dict, original_index_dict):
@@ -145,20 +173,20 @@ def generate_excel_with_thumbnails_pil(image_paths, save_path, mark_file_list, c
 
 def main():
     dataset = pathlib.Path(r"C:\Users\dndlssardar\OneDrive - Smiths Group\Documents\Projects\Dataset\Sixray_easy")
-    destination = pathlib.Path(r"./dataset_easy_lookup_500_1.xlsx")
+    destination = pathlib.Path(r"./dataset_500_to_2300_map.xlsx")
 
     train_filenames = list(list_dir(str(dataset / "train"), dir_flag=VOC_IMAGES, fullpath=False))
     test_filenames = list(list_dir(str(dataset / "test"), dir_flag=VOC_IMAGES, fullpath=False))
     image_paths = []
-    with open("caption_soumen_clean.csv", "r") as fp:
-        dicta = {f: c for f, c in map(lambda x: (x[:11].strip(","), x[11:].strip().strip(",").strip("\"")), fp)}
-
-    with open("dataset_easy_lookup-backup.csv", "r") as fp:
-        dicta2 = {f: c for f, c in map(lambda x: x.strip().split(',')[1:], fp)}
-
-    with open("data_images_500.csv", "r") as fp:
-        for line in fp:
-            filename = line.split(',')[0].strip()
+    # with open("caption_soumen_clean.csv", "r") as fp:
+    #     dicta = {f: c for f, c in map(lambda x: (x[:11].strip(","), x[11:].strip().strip(",").strip("\"")), fp)}
+    #
+    # with open("dataset_easy_lookup-backup.csv", "r") as fp:
+    #     dicta2 = {f: c for f, c in map(lambda x: x.strip().split(',')[1:], fp)}
+    file_names_to_highlight = []
+    with open("data_images_2300.csv", "r") as fp:
+        for line in csv.reader(fp):
+            filename = line[0].strip()
             image_path = None
             if filename in train_filenames:
                 image_path = (dataset / "train" / "JPEGImages" / filename)
@@ -167,12 +195,17 @@ def main():
 
             if image_path:
                 image_paths.append(image_path)
+    with open("data_images_500.csv", "r") as fp:
+        for line in csv.reader(fp):
+            filename = line[0].strip()
+            file_names_to_highlight.append(os.path.basename(filename))
     # Example usage
     save_path = str(destination)
-    with open("caption_soumen.csv", "r") as fp:
-        mark_file_list = [line.split(',')[0].strip() for line in fp]
+    # with open("caption_soumen.csv", "r") as fp:
+    #     mark_file_list = [line[0].strip() for line in csv.reader(fp)]
 
-    generate_excel_with_thumbnails_pil(image_paths, save_path, mark_file_list, dicta,dicta2)
+    # generate_excel_with_thumbnails_pil(image_paths, save_path, mark_file_list, dicta, dicta2)
+    generate_excel_with_thumbnails(image_paths, save_path, file_names_to_highlight)
     print("Excel generated")
 
 
