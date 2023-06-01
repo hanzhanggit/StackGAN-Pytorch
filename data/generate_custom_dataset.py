@@ -4,9 +4,12 @@ import os.path
 import pathlib
 import pickle
 import shutil
+import time
 from collections import defaultdict
 from datetime import datetime
 from pprint import pprint
+
+import pandas as pd
 from easydict import EasyDict as edict
 
 from voc_tools.constants import VOC_IMAGES
@@ -271,12 +274,6 @@ def generate_dataset(args):
     vdw.prepare_dataset(fasttext_cfg)
 
 
-def get_openai_api_key(path):
-    with open(path, "r") as fp:
-        for key, nickname in csv.reader(fp):
-            yield key, nickname
-
-
 class OpenAICredentialManager:
     """
     This singleton class read a working api key form a list of api-keys available as a simple csv file.
@@ -303,42 +300,210 @@ class OpenAICredentialManager:
         self.path = path
         self.nickname = None
         self.key = None
-        self.keygen = get_openai_api_key(path)
+        self.keygen = self.get_openai_api_key(path)
+
+    @staticmethod
+    def get_openai_api_key(path):
+        with open(path, "r") as fp:
+            for key, nickname in csv.reader(fp):
+                yield key, nickname
+
+    def __iter__(self):
+        return self
 
     def __next__(self):
         try:
             self.key, self.nickname = next(self.keygen)
         except StopIteration:
-            self.keygen = get_openai_api_key(self.path)
+            self.keygen = self.get_openai_api_key(self.path)
             self.key, self.nickname = next(self.keygen)
         finally:
             print("Using openai API Key for: '{}'".format(self.nickname))
         return self.key, self.nickname
 
 
-class OpenAITextPreprocessor:
+# IMPORTANT LINKS
+# Lang Chain
+#   https://python.langchain.com/en/latest/getting_started/getting_started.html
+# CLIP
+#   https://huggingface.co/docs/transformers/model_doc/clip
+#   https://towardsdatascience.com/linking-images-and-text-with-openai-clip-abb4bdf5dbd2
+# OPENAI
+#   https://platform.openai.com/docs/models/overview
+#   https://platform.openai.com/docs/guides/rate-limits/overview
+#   https://platform.openai.com/account/rate-limits
+#   https://platform.openai.com/docs/api-reference/models/list
+#   https://platform.openai.com/docs/guides/moderation/quickstart
+
+
+class OpenAITextLoader:
     """
     OpenAI API access is limited as describer here: https://platform.openai.com/docs/guides/rate-limits/overview.
     It limits user by Request Per Minute(RPM) and Token Per Minute(TPM). And this also varies as the choice of
-    algorithm. Thus, to make the most out of the algorithm we can preprocess the texts in bulk (as documents)
-    before sending out to openapi. This way we can optimize the RPM and TPM
+    algorithm. Thus, to make the most out of the API service, we can preprocess the texts in chunks (as documents)
+    before sending out to openapi. This way we can optimize the RPM and TPM.
+
+    Now, OpenAITextLoader class provides an iterator wrapper over your textual data loader. In each iteration,
+    it yields a list of text to send to OpenAI server for processing.
+    Optionally, it sleeps for some time, precalculated, if and when needed to honor RPM and TPM. This behaviour
+    could be controlled by setting a boolean flag 'auto_sleep=False'. To get the current sleep value(in mills)
+    before making a next request can be accessed via 'self.sleep_milli' variable. It is recommended to use
+    'auto_sleep=True'.
     """
+    ONE_MINUTE_MILLS = 60000
 
-    def __init__(self, model="ada", rpm=3, tpm=150000):
+    def __init__(self, dataloader, total_tokens=-1, model_token_support=2000, rpm=3, tpm=150000, auto_sleep=True,
+                 throw_error=True,
+                 truncate=False):
         """
+        Default values for all the arguments are supported in Free Tire using 'ada' text tokenizer
         Args:
-            model: which model to use. Default choice is 'ada'. As per openai,
-                   you can send approximately 200x more tokens per minute to an 'ada' model versus a 'davinci' model.
-            rpm: How much RPM you are allowed
-            tpm: How much TMP you are allowed
+            dataloader: Dataloader is a generator to load textual data.
+                        Please make sure to remove any duplicate sentence and,
+                        stop words, symbols, and numbers etc. Otherwise,
+                        it will end up wasting valuable OpenAI API quota.
+            model_token_support: How many tokens you model can process in one shot.
+                        As per openai, you can send approximately 200x more tokens per
+                        minute to an 'ada' model versus a 'davinci' model.
+            See: https://platform.openai.com/docs/models/overview
+
+            rpm: How many RPM you are allowed to make.
+            See: https://platform.openai.com/account/rate-limits
+
+            tpm: How many TMP you are allowed to process.
+            See: https://platform.openai.com/account/rate-limits
+
+            auto_sleep: Set False to handle seep manually.
         """
-        self.start_time = datetime.now()
+        self.buffer = []
+        self.dataloader = dataloader
+        self.model_token_support = model_token_support
+        self.rpm = rpm
+        self.tpm = tpm
+        # other variables
+        self.auto_sleep = auto_sleep
+        self.since = None
+        # self.request_counter = 0
+        self.token_counter = 0
+        self.sleep_milli = int(OpenAITextLoader.ONE_MINUTE_MILLS / self.rpm) + 5
+        self.residual_text = None
+        # extra features
+        self.throw_error = throw_error
+        self.truncate = truncate
+        if auto_sleep is False:
+            print("Please sleep before between API calls")
+        self.expected_time_to_complete_minutes = -1
+        if total_tokens > 0:
+            print("Expected time to complete (at-least): ", end="")
+            # m = model token support
+            # t = total data tokens
+            # tpm = tone per minute
+            # required_requests = t / m
+            # time_required_minute = required_requests / rpm
+            self.expected_time_to_complete_minutes = round((total_tokens / self.model_token_support) / self.rpm, 2)
+            print(self.expected_time_to_complete_minutes, end=" minute(s)\n")
+
+    def sleep(self):
+        if self.auto_sleep:
+            print("Sleep for: {} sec".format(self.sleep_milli / 1000))
+            time.sleep(self.sleep_milli / 1000)
+
+    def __next__(self):
+        """
+        The iterator
+        """
+        print("Start Time:", datetime.now())
+        while True:
+            self.buffer.clear()
+            tokens = 0
+            just_started = False
+            # calculate time difference in millisecond
+            if self.since is None:
+                # start timer
+                self.since = datetime.now()
+                just_started = True
+            now = datetime.now()
+            # # inter-call difference in milliseconds
+            mills_diff = int((now - self.since).microseconds / 10)
+            # if one minute is not over, but you have exhausted TPM, sleep
+            if mills_diff < OpenAITextLoader.ONE_MINUTE_MILLS and self.token_counter >= self.tpm:
+                print("TPM exhaust sleep. One minute is not over, but you have exhausted TPM, sleeps")
+                self.token_counter = 0  # reset token counter
+                self.since = datetime.now()  # reset timer
+                self.sleep_milli = (OpenAITextLoader.ONE_MINUTE_MILLS - mills_diff) + 10
+                self.sleep()
+            else:
+                if just_started is False:
+                    print("Inter-request sleep to honour RPM")
+                    self.sleep_milli = int(OpenAITextLoader.ONE_MINUTE_MILLS / self.rpm) + 5
+                    self.sleep()
+            # look for any residual text from previous iteration
+            if self.residual_text is not None:
+                print("Residual text retrival: '{}'".format(self.residual_text))
+                # count the length of residual test
+                tokens = len(self.residual_text)
+                self.token_counter += tokens
+                # append it to buffer
+                self.buffer.append(self.residual_text)
+                # check if we it
+                self.residual_text = None
+            # fetch new text
+            for text in self.dataloader:
+                # get the length of new text
+                lent = len(text)
+                if lent >= self.model_token_support:
+                    # user asked to truncate the text
+                    if self.truncate:
+                        text = text[:self.model_token_support - 1]
+                    else:
+                        # user asked to throw error if not truncating
+                        if self.throw_error:
+                            raise ValueError(
+                                "The text '{}' is larger than the model can process:{}".format(
+                                    text, self.model_token_support)
+                            )
+                        else:
+                            # user asked not to truncate but to skip silently
+                            continue
+                tokens += lent
+                if tokens >= self.model_token_support:
+                    self.residual_text = text
+                    print("Residual text saved: '{}'".format(self.residual_text))
+                    break
+                else:
+                    self.token_counter += lent
+                    self.buffer.append(text)
+            if len(self.buffer) > 0:
+                yield self.buffer
+            else:
+                break
+        print("End Time:", datetime.now())
 
 
-def generate_dataset_with_langchain():
+def generate_openai_embeddings():
     from langchain.embeddings import OpenAIEmbeddings
     from openai.error import RateLimitError
 
+    args = parse_args()
+
+    class Data:
+        total_tokens = 0
+
+    def caption_loader():
+        sqlite = SQLiteDataWrap(args.sqlite)
+        unique_captions1 = sqlite.dataframe['caption'].unique()
+        unique_captions = sqlite.dataframe['caption'].apply(DatasetWrap.clean).unique()
+        print("Unique captions no clean:", unique_captions1.shape)
+        print("Unique captions cleaned:", unique_captions.shape)
+        Data.total_tokens = sum(map(lambda x: len(x), unique_captions))
+        print("Total tokens:", Data.total_tokens)
+        return unique_captions
+
+    textloader = OpenAITextLoader(caption_loader(), Data.total_tokens)
+    return
+    for bulk in next(textloader):
+        print(bulk)
+    return
     cm = OpenAICredentialManager("./data/openai.apikey")
     key, nickname = next(cm)
 
@@ -1723,6 +1888,7 @@ class SQLiteDataWrap:
         self.dbpath = dbpath
         self.is_clean = False
         self.image_path_dict = None
+        self.dataframe = pd.read_sql_query("SELECT * FROM caption", conn)
 
     def clean(self):
         self.is_clean = True
@@ -1818,7 +1984,7 @@ def from_sqlite():
 if __name__ == '__main__':
     # from_custom_dataset()
     # from_sqlite()
-    generate_dataset_with_langchain()
+    generate_openai_embeddings()
 
 """ UBUNTU
 sqlite3 -header -csv "C:\\Users\\dndlssardar\\Downloads\\tip_gai_22052023_1743.db" "SELECT * FROM caption" > caption.csv
