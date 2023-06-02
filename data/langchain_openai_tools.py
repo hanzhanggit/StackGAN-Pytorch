@@ -4,6 +4,8 @@ import pickle
 import time
 from datetime import datetime
 
+from dataset_wrap import DatasetWrap
+
 
 class OpenAITextEmbeddingDB:
     # A quick brown fox jump over the lazy dog
@@ -1371,6 +1373,7 @@ class OpenAITextEmbeddingDB:
     
     def __init__(self, path):
         self.pickle_path = path
+        self.dim = -1
         if os.path.isfile(self.pickle_path):
             with open(self.pickle_path, 'rb') as fpp:
                 self.db = pickle.load(fpp, encoding="bytes")
@@ -1381,8 +1384,17 @@ class OpenAITextEmbeddingDB:
                 ("security discovered concealed knife passenger's bag", OpenAITextEmbeddingDB.arr3),
             ]
             self.commit()
+        
+        self.dim = len(self.db[0][1])
+    
+    def to_dict(self):
+        db = dict()
+        for text, embeddings in self.db:
+            db[text] = embeddings
+        return db
     
     def append(self, text, embedding):
+        assert len(embedding) == self.dim
         self.db.append((text, embedding))
     
     def commit(self):
@@ -1396,6 +1408,20 @@ class OpenAITextEmbeddingDB:
     def query(self, text):
         lll = list(filter(lambda xy: xy[0] == text, self.db))
         return lll
+
+
+class OpenAIModelProxy:
+    def __init__(self, openai_emb_db):
+        emb_db = OpenAITextEmbeddingDB(openai_emb_db)
+        self.emb_dict = emb_db.to_dict()
+        self.dim = emb_db.dim
+    
+    def get_word_vector(self, text):
+        t = DatasetWrap.clean(text)
+        v = self.emb_dict.get(t, None)
+        if v is None:
+            raise KeyError("Embedding value not found for '{}'".format(text))
+        return v
 
 
 def get_openai_api_key(path):
