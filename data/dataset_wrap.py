@@ -6,6 +6,8 @@ import sqlite3
 from collections import defaultdict
 
 import pandas as pd
+import ray
+import threading
 from voc_tools.constants import VOC_IMAGES
 from voc_tools.reader import from_file, list_dir
 from voc_tools.utils import VOCDataset, Dataset
@@ -263,20 +265,22 @@ def check_grammar(text):
 
 
 class SQLiteDataWrap:
+    # create locks
+    file_locks = defaultdict(lambda: threading.Lock())
     
     def __init__(self, dbpath):
         assert os.path.isfile(dbpath), dbpath
         conn = sqlite3.connect(dbpath)
         self.conn = conn
         self.dbpath = dbpath
-        self.is_clean = False
         self.image_path_dict = None
         self.dataframe = pd.read_sql_query("SELECT * FROM caption", conn)
         self.dataframe['caption'] = self.dataframe['caption'].apply(lambda x: x.replace("\n", " "))
+        # this is a tricky approach to create/use locks during runtime instead of running an additional loop to
     
-    def clean(self):
-        self.is_clean = True
-        return self
+    def close(self):
+        self.conn.commit()
+        self.conn.close()
     
     def get_path(self, file_id, image_paths):
         if self.image_path_dict is None:
@@ -288,6 +292,104 @@ class SQLiteDataWrap:
                 filepath = filtered[0]
                 self.image_path_dict[file_id] = filepath
         return filepath
+    
+    @staticmethod
+    @ray.remote
+    def file_writer(filename, caption):
+        with SQLiteDataWrap.file_locks[filename]:
+            with open(filename, 'a+') as fp:
+                fp.seek(0)
+                lines = fp.readlines()
+                if caption + "\n" in lines:
+                    # statistics[caption.filename]['duplicate'] += 1
+                    # statistics["caption"]['duplicate'] += 1
+                    pass
+                elif len(caption.split(" ")) < 2:
+                    # statistics[caption.filename]['faulty'] += 1
+                    # statistics["caption"]['faulty'] += 1
+                    pass
+                else:
+                    fp.write(caption.replace("\n", " ").strip() + "\n")
+                    # check grammar
+                    # errors = check_grammar(caption.caption)
+                    # save statistics
+                    # statistics[caption.filename]['caption'] += 1
+                    # statistics[caption.filename]['grammar'] += len(errors) > 0
+                    # statistics["caption"]['total'] += 1
+                    # statistics['grammar']['error-sentence'] += len(errors) > 0
+                    # statistics['grammar']['total-error'] += len(errors)
+    
+    def export_fast(self, data_root, clean=False, copy_images=False, image_paths=()):
+        data_root = pathlib.Path(data_root)
+        print("Initializing Ray...", end="")
+        ray.init()
+        print("DONE")
+        
+        # defining paths
+        caption_root = data_root / "train" / "texts"
+        image_root = data_root / "train" / "JPEGImages"
+        if clean:
+            print("Cleaning previous data...", end="")
+            # deleting directories
+            shutil.rmtree(caption_root, ignore_errors=True)
+            shutil.rmtree(image_root, ignore_errors=True)
+            print("Done")
+        # create directories
+        os.makedirs(caption_root, exist_ok=True)
+        os.makedirs(image_root, exist_ok=True)
+        os.makedirs(data_root / "test" / "JPEGImages", exist_ok=True)
+        os.makedirs(data_root / "test" / "JPEGImages", exist_ok=True)
+        
+        statistics = defaultdict(lambda: defaultdict(lambda: 0))
+        # taking DB cursor and running queries
+        print("Querying dataset form SQLITE...")
+        curr = self.conn.cursor()
+        count = curr.execute("SELECT count(*) FROM caption").fetchone()[0]
+        dataset = curr.execute("SELECT * FROM caption")
+        print("Creating dataset form SQLITE...", )
+        task_counter = 0
+        for idx, data in enumerate(dataset):
+            print("\r{}/{} {}% ".format(idx, (count - 1), round((idx / (count - 1) * 100.), 2)), end="\b")
+            caption = Caption(data)
+            if copy_images:
+                # copying images
+                filepath = self.get_path(caption.file_id, image_paths)
+                if not os.path.isfile(image_root / caption.file_id):
+                    shutil.copyfile(filepath, image_root / caption.file_id)
+            # write to file using ray
+            self.file_writer.remote(caption_root / caption.filename, caption.caption)
+            task_counter += 1
+            # # creating the caption files
+            # with open(caption_root / caption.filename, "a+") as fp:
+            #     fp.seek(0)
+            #     lines = fp.readlines()
+            #     if caption.caption + "\n" in lines:
+            #         statistics[caption.filename]['duplicate'] += 1
+            #         statistics["caption"]['duplicate'] += 1
+            #     elif len(caption.caption.split(" ")) < 2:
+            #         statistics[caption.filename]['faulty'] += 1
+            #         statistics["caption"]['faulty'] += 1
+            #     else:
+            #         fp.write(caption.caption.replace("\n", " ") + "\n")
+            #         # check grammar
+            #         errors = check_grammar(caption.caption)
+            #         # save statistics
+            #         statistics[caption.filename]['caption'] += 1
+            #         statistics[caption.filename]['grammar'] += len(errors) > 0
+            #         statistics["caption"]['total'] += 1
+            #         statistics['grammar']['error-sentence'] += len(errors) > 0
+            #         statistics['grammar']['total-error'] += len(errors)
+        print("Waiting for Ray...", end="")
+        ray.wait([], num_returns=task_counter)
+        print("Shutting-down Ray")
+        ray.shutdown()
+        print("Done")
+        return statistics
+    
+    def check(self, data_root):
+        """Check if all files contain all texts"""
+        df = pd.read_sql_query("SELECT * FROM captions", self.conn)
+        caption_count_per_file = df['file_id'].value_counts()
     
     def export(self, data_root, clean=False, copy_images=False, image_paths=()):
         data_root = pathlib.Path(data_root)
@@ -309,7 +411,7 @@ class SQLiteDataWrap:
         
         statistics = defaultdict(lambda: defaultdict(lambda: 0))
         # taking DB cursor and running queries
-        print("Quering dataset form SQLITE...")
+        print("Querying dataset form SQLITE...")
         curr = self.conn.cursor()
         count = curr.execute("SELECT count(*) FROM caption").fetchone()[0]
         dataset = curr.execute("SELECT * FROM caption")

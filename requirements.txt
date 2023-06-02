@@ -10,3 +10,4 @@ pyyaml
 langchain
 openai
 tiktoken
+ray

@@ -3,7 +3,6 @@ import os
 import pathlib
 from pprint import pprint
 
-import numpy as np
 from tqdm import tqdm
 from voc_tools.constants import VOC_IMAGES
 from voc_tools.reader import list_dir
@@ -74,11 +73,18 @@ def generate_dataset(args):
     vdw.prepare_dataset(fasttext_cfg)
 
 
-def create_openai_embedding_database(embedding_database):
+def create_openai_embedding_database():
     from langchain.embeddings import OpenAIEmbeddings
     from openai.error import RateLimitError
     
     args = parse_args()
+    
+    embedding_database = args.openai_emb_db
+    
+    test_captions = []
+    if os.path.isfile(args.test_data_file):
+        with open(args.test_data_file) as fp:
+            test_captions = fp.readlines()
     
     class Data:
         total_sentence = 0
@@ -89,24 +95,28 @@ def create_openai_embedding_database(embedding_database):
     
     # emb_db.query(DatasetWrap.clean("A quick brown fox jump over the lazy dog"))
     
-    def caption_loader():
+    def caption_loader(additional_captions=()):
         sqlite = SQLiteDataWrap(args.sqlite)
-        unique_captions = sqlite.dataframe['caption'].apply(DatasetWrap.clean).unique()
-        unique_captions = np.array(list(filter(lambda txt: not emb_db.is_available(txt), unique_captions)))
-        print("Unique captions cleaned:", unique_captions.shape)
-        Data.total_sentence = unique_captions.shape[0]
+        unique_captions = sqlite.dataframe['caption'].apply(DatasetWrap.clean).unique().tolist()
+        # add additional captions
+        unique_captions.extend(list(map(DatasetWrap.clean, additional_captions)))
+        unique_captions = list(filter(lambda txt: not emb_db.is_available(txt), unique_captions))
+        Data.total_sentence = len(unique_captions)
         Data.total_tokens = sum(map(lambda x: len(x), unique_captions))
+        print("Unique captions cleaned:", Data.total_sentence)
         print("Total tokens:", Data.total_tokens)
         return unique_captions
     
     bulk_embedded = False
     rpm = 3
-    bulk_caption_loader = OpenAITextLoader(caption_loader(), Data.total_tokens, Data.total_sentence, rpm=rpm,
+    caption_loader = caption_loader(test_captions)
+    bulk_caption_loader = OpenAITextLoader(caption_loader, Data.total_tokens, Data.total_sentence,
+                                           rpm=rpm,
                                            tpm=150000, auto_sleep=False)
     cred_man = OpenAICredentialManager("./data/openai.apikey")
     cm = iter(cred_man)
     key, nickname = next(cm)
-    for caption in tqdm(caption_loader()):
+    for caption in tqdm(caption_loader):
         while True:
             model = OpenAIEmbeddings(openai_api_key=key, model="ada", max_retries=1)
             try:
@@ -134,7 +144,7 @@ def generate_caption_embedding_with_openai():
     file_paths.extend(list(list_dir(str(dataset / "test"), dir_flag=VOC_IMAGES, fullpath=True)))
     # generating dataset form SQLIte
     sqlite_data = SQLiteDataWrap(args.sqlite)
-    sqlite_data.clean().export(args.data_dir, clean=args.clean, copy_images=args.copy_images, image_paths=file_paths)
+    sqlite_data.export_fast(args.data_dir, clean=args.clean, copy_images=args.copy_images, image_paths=file_paths)
     # For generating dataset
     Dataset.IMAGE_DIR = "JPEGImages"
     Dataset.CAPTION_DIR = "texts"
@@ -161,7 +171,7 @@ def from_sqlite():
     file_paths.extend(list(list_dir(str(dataset / "test"), dir_flag=VOC_IMAGES, fullpath=True)))
     # generating dataset form SQLIte
     sqlite_data = SQLiteDataWrap(args.sqlite)
-    sqlite_data.clean().export(args.data_dir, clean=args.clean, copy_images=args.copy_images, image_paths=file_paths)
+    sqlite_data.export_fast(args.data_dir, clean=args.clean, copy_images=args.copy_images, image_paths=file_paths)
     # For generating dataset
     Dataset.IMAGE_DIR = "JPEGImages"
     Dataset.CAPTION_DIR = "texts"
@@ -170,9 +180,9 @@ def from_sqlite():
 
 
 if __name__ == '__main__':
-    create_openai_embedding_database("./data/openai_embedding.db")
-    from_custom_dataset()
+    create_openai_embedding_database()
     from_sqlite()
+    # from_custom_dataset()
 
 """ UBUNTU
 sqlite3 -header -csv "C:\\Users\\dndlssardar\\Downloads\\tip_gai_22052023_1743.db" "SELECT * FROM caption" > caption.csv
