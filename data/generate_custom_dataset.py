@@ -329,26 +329,19 @@ def generate_openai_embeddings(embedding_database):
     cred_man = OpenAICredentialManager("./data/openai.apikey")
     cm = iter(cred_man)
     key, nickname = next(cm)
-    for captions in next(bulk_caption_loader):
+    for caption in tqdm(caption_loader()):
         while True:
             model = OpenAIEmbeddings(openai_api_key=key, model="ada", max_retries=1)
             try:
                 if cred_man.is_limit_exhausted(nickname):
                     raise RateLimitError("Rate limit exhausted for {}".format(nickname))
-                if bulk_embedded:
-                    # bulk
-                    embeddings = model.embed_documents(captions)
-                    map(lambda x, y: emb_db.append(x, y), zip(captions, embeddings))
-                    emb_db.commit()
-                    break
-                else:
-                    # single
-                    for caption in tqdm(captions):
-                        embedding = model.embed_query(caption)
-                        emb_db.append(caption, embedding)
-                        emb_db.commit()
-                        # time.sleep(60 / rpm)
-                    break
+                
+                # single
+                embedding = model.embed_query(caption)
+                emb_db.append(caption, embedding)
+                emb_db.commit()
+                # time.sleep(60 / rpm)
+                break
             except RateLimitError:
                 cred_man.set_limit_exhausted(nickname)
                 key, nickname = next(cm)
