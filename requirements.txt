@@ -9,3 +9,4 @@ chardet
 pyyaml
 langchain
 openai
+tiktoken
