@@ -13,13 +13,18 @@ import pickle
 import random
 import numpy as np
 import pandas as pd
+from torchvision.transforms import transforms
 
 
 class TextDataset(data.Dataset):
     def __init__(self, data_dir, split='train', embedding_type='cnn-rnn',
-                 imsize=64, transform=None, target_transform=None):
-        
-        self.dtype = 'float32'
+                 imsize=64, transform=None, target_transform=None, float_precision=32):
+        assert float_precision in (32, 64), "Required 32 or 64 but {} is given".format(float_precision)
+        if float_precision == 32:
+            self.dtype = torch.float32
+        else:
+            self.dtype = torch.float64
+        self.float_precision = float_precision
         self.transform = transform
         self.target_transform = target_transform
         self.imsize = imsize
@@ -36,7 +41,7 @@ class TextDataset(data.Dataset):
         self.class_id = self.load_class_id(split_dir, len(self.filenames))
         # self.captions = self.load_all_captions()
     
-    def get_img(self, img_path, bbox):
+    def get_img(self, img_path, bbox) -> torch.Tensor:
         img = Image.open(img_path).convert('RGB')
         width, height = img.size
         if bbox is not None:
@@ -52,7 +57,11 @@ class TextDataset(data.Dataset):
         # img = img.resize((load_size, load_size), PIL.Image.BILINEAR)
         if self.transform is not None:
             img = self.transform(img)
-        return img
+        else:
+            img = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])(img)
+        return img.type(self.dtype)
     
     def load_bbox(self):
         data_dir = self.data_dir
@@ -69,7 +78,7 @@ class TextDataset(data.Dataset):
         #
         filename_bbox = {img_file[:-4]: [] for img_file in filenames}
         numImgs = len(filenames)
-        for i in xrange(0, numImgs):
+        for i in range(0, numImgs):
             # bbox = [x-left, y-top, width, height]
             bbox = df_bounding_boxes.iloc[i][1:].tolist()
             
@@ -113,11 +122,10 @@ class TextDataset(data.Dataset):
         
         with open(os.path.join(data_dir, embedding_filename), 'rb') as f:
             embeddings = pickle.load(f, encoding="bytes")
-            embeddings = torch.tensor(np.array(embeddings))
+            embeddings = np.array(embeddings)
             # embedding_shape = [embeddings.shape[-1]]
-            print('embeddings: ', embeddings.shape, "dtype:", embeddings.dtype)
-        self.dtype = embeddings.dtype
-        return embeddings
+            print('embeddings: ', embeddings.shape, "original dtype:", embeddings.dtype)
+        return torch.tensor(embeddings, dtype=self.dtype)
     
     def load_class_id(self, data_dir, total_num):
         path_ = os.path.join(data_dir, 'class_info.pickle')
@@ -155,7 +163,6 @@ class TextDataset(data.Dataset):
         embedding = embeddings[embedding_ix, :]
         if self.target_transform is not None:
             embedding = self.target_transform(embedding)
-        img = img.type(self.dtype)  # change datatype
         return img, embedding
     
     def __len__(self):

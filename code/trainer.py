@@ -169,8 +169,8 @@ class GANTrainer(object):
             
             loop_ran = False
             for batch_idx, data in enumerate(data_loader, 0):
-                print("\rEpoch: {}/{} Batch: {} ".format(epoch + 1, self.max_epoch, batch_idx + 1),
-                      end="\b")
+                print("\rEpoch: {}/{} Batch: {}/{} ".format(
+                    epoch + 1, self.max_epoch, batch_idx + 1, len(data_loader)), end="\b")
                 loop_ran = True
                 ######################################################
                 # (1) Prepare training data
@@ -188,7 +188,8 @@ class GANTrainer(object):
                 noise.data.normal_(0, 1)
                 inputs = (txt_embedding, noise)
                 
-                assert len(txt_embedding.shape) == len(noise.shape) == 2, "2D tensors are expected, Got {} & {}".format(
+                assert len(txt_embedding.shape) == len(
+                    noise.shape) == 2, "Two 2D tensors are expected, Got {} & {}".format(
                     txt_embedding.shape, noise.shape)
                 _, fake_imgs, mu, logvar = nn.parallel.data_parallel(netG, inputs, self.gpus)
                 
