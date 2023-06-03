@@ -326,8 +326,8 @@ class SQLiteDataWrap:
         print("DONE")
         
         # defining paths
-        caption_root = data_root / "train" / "texts"
-        image_root = data_root / "train" / "JPEGImages"
+        caption_root = data_root / "train" / Dataset.CAPTION_DIR
+        image_root = data_root / "train" / Dataset.IMAGE_DIR
         if clean:
             print("Cleaning previous data...", end="")
             # deleting directories
@@ -337,8 +337,8 @@ class SQLiteDataWrap:
         # create directories
         os.makedirs(caption_root, exist_ok=True)
         os.makedirs(image_root, exist_ok=True)
-        os.makedirs(data_root / "test" / "JPEGImages", exist_ok=True)
-        os.makedirs(data_root / "test" / "JPEGImages", exist_ok=True)
+        os.makedirs(data_root / "test" / Dataset.IMAGE_DIR, exist_ok=True)
+        os.makedirs(data_root / "test" / Dataset.IMAGE_DIR, exist_ok=True)
         
         statistics = defaultdict(lambda: defaultdict(lambda: 0))
         # taking DB cursor and running queries
@@ -395,8 +395,8 @@ class SQLiteDataWrap:
         data_root = pathlib.Path(data_root)
         
         # defining paths
-        caption_root = data_root / "train" / "texts"
-        image_root = data_root / "train" / "JPEGImages"
+        caption_root = data_root / "train" / Dataset.CAPTION_DIR
+        image_root = data_root / "train" / Dataset.IMAGE_DIR
         if clean:
             print("Cleaning previous data...", end="")
             # deleting directories
@@ -406,8 +406,8 @@ class SQLiteDataWrap:
         # create directories
         os.makedirs(caption_root, exist_ok=True)
         os.makedirs(image_root, exist_ok=True)
-        os.makedirs(data_root / "test" / "JPEGImages", exist_ok=True)
-        os.makedirs(data_root / "test" / "JPEGImages", exist_ok=True)
+        os.makedirs(data_root / "test" / Dataset.IMAGE_DIR, exist_ok=True)
+        os.makedirs(data_root / "test" / Dataset.IMAGE_DIR, exist_ok=True)
         
         statistics = defaultdict(lambda: defaultdict(lambda: 0))
         # taking DB cursor and running queries
