@@ -159,16 +159,16 @@ def generate_caption_embedding_with_openai():
     sqlite_data.export_fast(args.data_dir, clean=args.clean, copy_images=args.copy_images, image_paths=file_paths)
     # For generating dataset
     Dataset.IMAGE_DIR = "JPEGImages"
-    Dataset.CAPTION_DIR = "texts"
+    Dataset.CAPTION_DIR = "captions"
     # generate dataset
     generate_dataset(args)
 
 
 def from_custom_dataset():
     args = parse_args()
-    Dataset.IMAGE_DIR = "images"
+    Dataset.IMAGE_DIR = "JPEGImages"
     Dataset.ANNO_DIR = "Annotations"
-    Dataset.CAPTION_DIR = "texts"
+    Dataset.CAPTION_DIR = "captions"
     # generate dataset
     generate_dataset(args)
 
@@ -178,6 +178,7 @@ def from_sqlite(generate=True):
     dataset = pathlib.Path(args.dataroot)
     # For reading images
     Dataset.IMAGE_DIR = "JPEGImages"
+    Dataset.CAPTION_DIR = "captions"
     # reading filepaths
     file_paths = list(list_dir(str(dataset / "train"), dir_flag=VOC_IMAGES, fullpath=True))
     file_paths.extend(list(list_dir(str(dataset / "test"), dir_flag=VOC_IMAGES, fullpath=True)))
@@ -188,7 +189,7 @@ def from_sqlite(generate=True):
     if generate:
         # For generating dataset
         Dataset.IMAGE_DIR = "JPEGImages"
-        Dataset.CAPTION_DIR = "texts"
+        Dataset.CAPTION_DIR = "captions"
         # generate dataset
         generate_dataset(args)
 
