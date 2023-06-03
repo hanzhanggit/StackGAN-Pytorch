@@ -1,6 +1,6 @@
 CONFIG_NAME: 'stage_2'
 
-DATASET_NAME: 'sixray_2500_openai_1536D_nocrop'
+DATASET_NAME: 'sixray_2500_300D_nocrop'
 EMBEDDING_TYPE: 'embeddings_openai_1536D.pickle'
 GPU_ID: '0,1'
 Z_DIM: 100

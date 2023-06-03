@@ -40,17 +40,17 @@ class GANTrainer(object):
             mkdir_p(self.image_dir)
             mkdir_p(self.log_dir)
             self.summary_writer = SummaryWriter(self.log_dir)
-
+        
         self.max_epoch = cfg.TRAIN.MAX_EPOCH
         self.snapshot_interval = cfg.TRAIN.SNAPSHOT_INTERVAL
-
+        
         s_gpus = cfg.GPU_ID.split(',')
         self.gpus = [int(ix) for ix in s_gpus]
         self.num_gpus = len(self.gpus)
         self.batch_size = cfg.TRAIN.BATCH_SIZE * self.num_gpus
         torch.cuda.set_device(self.gpus[0])
         cudnn.benchmark = True
-
+    
     # ############# For training stageI GAN #############
     def load_network_stageI(self):
         from model import STAGE1_G, STAGE1_D
@@ -65,11 +65,11 @@ class GANTrainer(object):
                 cfg.TRAIN.FINETUNE.NET_G), "TRAIN.FINETUNE.NET_G is required when TRAIN.FINETUNE.FLAG=True"
             assert os.path.isfile(
                 cfg.TRAIN.FINETUNE.NET_D), "TRAIN.FINETUNE.NET_D is required when TRAIN.FINETUNE.FLAG=True"
-
+            
             state_dict = torch.load(cfg.TRAIN.FINETUNE.NET_G, map_location=lambda storage, loc: storage)
             netG.load_state_dict(state_dict)
             print('Load from NET_G: ', cfg.TRAIN.FINETUNE.NET_G)
-
+            
             state_dict = torch.load(cfg.TRAIN.FINETUNE.NET_D, map_location=lambda storage, loc: storage)
             netD.load_state_dict(state_dict)
             print('Load from NET_D: ', cfg.TRAIN.FINETUNE.NET_D)
@@ -77,11 +77,11 @@ class GANTrainer(object):
             netG.cuda()
             netD.cuda()
         return netG, netD
-
+    
     # ############# For training stageII GAN  #############
     def load_network_stageII(self):
         from model import STAGE1_G, STAGE2_G, STAGE2_D
-
+        
         Stage1_G = STAGE1_G()
         netG = STAGE2_G(Stage1_G)
         netG.apply(weights_init)
@@ -94,15 +94,15 @@ class GANTrainer(object):
                 cfg.TRAIN.FINETUNE.NET_G), "TRAIN.FINETUNE.NET_G is required when TRAIN.FINETUNE.FLAG=True"
             assert os.path.isfile(
                 cfg.TRAIN.FINETUNE.NET_D), "TRAIN.FINETUNE.NET_D is required when TRAIN.FINETUNE.FLAG=True"
-
+            
             state_dict = torch.load(cfg.TRAIN.FINETUNE.NET_G, map_location=lambda storage, loc: storage)
             netG.load_state_dict(state_dict)
             print('Load from NET_G: ', cfg.TRAIN.FINETUNE.NET_G)
-
+            
             state_dict = torch.load(cfg.TRAIN.FINETUNE.NET_D, map_location=lambda storage, loc: storage)
             netD.load_state_dict(state_dict)
             print('Load from NET_D: ', cfg.TRAIN.FINETUNE.NET_D)
-
+        
         if cfg.STAGE1_G != '' and os.path.isfile(cfg.STAGE1_G):
             state_dict = torch.load(cfg.STAGE1_G, map_location=lambda storage, loc: storage)
             netG.STAGE1_G.load_state_dict(state_dict)
@@ -113,13 +113,13 @@ class GANTrainer(object):
             netG.cuda()
             netD.cuda()
         return netG, netD
-
+    
     def train(self, data_loader, stage=1):
         if stage == 1:
             netG, netD = self.load_network_stageI()
         else:
             netG, netD = self.load_network_stageII()
-
+        
         nz = cfg.Z_DIM
         batch_size = self.batch_size
         noise = Variable(torch.FloatTensor(batch_size, nz))
@@ -130,7 +130,7 @@ class GANTrainer(object):
         if cfg.CUDA:
             noise, fixed_noise = noise.cuda(), fixed_noise.cuda()
             real_labels, fake_labels = real_labels.cuda(), fake_labels.cuda()
-
+        
         generator_lr = cfg.TRAIN.GENERATOR_LR
         discriminator_lr = cfg.TRAIN.DISCRIMINATOR_LR
         lr_decay_step = cfg.TRAIN.LR_DECAY_EPOCH
@@ -144,7 +144,17 @@ class GANTrainer(object):
         epoch_start = 0
         if cfg.TRAIN.FINETUNE.FLAG:
             epoch_start = cfg.TRAIN.FINETUNE.EPOCH_START
-
+        ######################################################
+        # Update Double Point precision
+        ######################################################
+        dtype = data_loader.dataset.dtype
+        if torch.float64 == dtype:
+            fixed_noise = fixed_noise.type(dtype)
+            noise = noise.type(dtype)
+            real_labels = real_labels.type(dtype)
+            fake_labels = fake_labels.type(dtype)
+            netG.double()
+            netD.double()
         count = 0
         for epoch in range(epoch_start, self.max_epoch):
             start_t = time.time()
@@ -155,7 +165,7 @@ class GANTrainer(object):
                 discriminator_lr *= 0.5
                 for param_group in optimizerD.param_groups:
                     param_group['lr'] = discriminator_lr
-
+            
             loop_ran = False
             for i, data in enumerate(data_loader, 0):
                 loop_ran = True
@@ -168,16 +178,17 @@ class GANTrainer(object):
                 if cfg.CUDA:
                     real_imgs = real_imgs.cuda()
                     txt_embedding = txt_embedding.cuda()
-
+                
                 ######################################################
                 # (2) Generate fake images
                 ######################################################
                 noise.data.normal_(0, 1)
                 inputs = (txt_embedding, noise)
+                
                 assert len(txt_embedding.shape) == len(noise.shape) == 2, "2D tensors are expected, Got {} & {}".format(
                     txt_embedding.shape, noise.shape)
                 _, fake_imgs, mu, logvar = nn.parallel.data_parallel(netG, inputs, self.gpus)
-
+                
                 ###########################
                 # (3) Update D network
                 ###########################
@@ -197,7 +208,7 @@ class GANTrainer(object):
                 errG_total = errG + kl_loss * cfg.TRAIN.COEFF.KL
                 errG_total.backward()
                 optimizerG.step()
-
+                
                 count = count + 1
                 if i % 100 == 0:
                     self.summary_writer.add_scalar('D_loss', errD.data, count)
@@ -232,7 +243,7 @@ class GANTrainer(object):
                      errD_real, errD_wrong, errD_fake, (end_t - start_t)))
             if epoch % self.snapshot_interval == 0:
                 save_model(netG, netD, epoch, self.model_dir)
-
+            
             # CLEAN GPU RAM  ########################
             # pprint(torch.cuda.memory_summary(device=None, abbreviated=False))
             torch.cuda.empty_cache()
@@ -256,7 +267,7 @@ class GANTrainer(object):
         #
         self.summary_writer.flush()
         self.summary_writer.close()
-
+    
     def sample(self, datapath, output_dir, stage):
         if stage == 1:
             netG, _ = self.load_network_stageI()
@@ -265,7 +276,7 @@ class GANTrainer(object):
         else:
             raise ValueError("Stage must me 1 or 2 but {} given".format(stage))
         netG.eval()
-
+        
         # Load text embeddings generated from the encoder
         with open(datapath, 'rb') as f:
             embeddings = pickle.load(f, encoding="bytes")
@@ -281,7 +292,7 @@ class GANTrainer(object):
         # path to save generated samples
         save_dir = output_dir + "/generated"
         mkdir_p(save_dir)
-
+        
         batch_size = np.minimum(num_embeddings, self.batch_size)
         nz = cfg.Z_DIM
         noise = Variable(torch.FloatTensor(batch_size, nz))
@@ -300,7 +311,7 @@ class GANTrainer(object):
             txt_embedding = Variable(torch.FloatTensor(embeddings_batch))
             if cfg.CUDA:
                 txt_embedding = txt_embedding.cuda()
-
+            
             #######################################################
             # (2) Generate fake images
             ######################################################

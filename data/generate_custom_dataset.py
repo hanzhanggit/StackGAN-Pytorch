@@ -6,7 +6,7 @@ from pprint import pprint
 from tqdm import tqdm
 from voc_tools.constants import VOC_IMAGES
 from voc_tools.reader import list_dir
-from voc_tools.utils import Dataset
+from voc_tools.utils import Dataset, VOCDataset
 
 from dataset_wrap import SQLiteDataWrap, DatasetWrap
 from langchain_openai_tools import OpenAITextLoader, OpenAICredentialManager, OpenAITextEmbeddingDB, OpenAIModelProxy
@@ -73,7 +73,7 @@ def generate_dataset(args):
     vdw.prepare_dataset(fasttext_cfg)
 
 
-def create_openai_embedding_database():
+def create_openai_embedding_database(generate=False):
     from langchain.embeddings import OpenAIEmbeddings
     from openai.error import RateLimitError
     
@@ -96,8 +96,13 @@ def create_openai_embedding_database():
     # emb_db.query(DatasetWrap.clean("A quick brown fox jump over the lazy dog"))
     
     def caption_loader(additional_captions=()):
-        sqlite = SQLiteDataWrap(args.sqlite)
-        unique_captions = sqlite.dataframe['caption'].apply(DatasetWrap.clean).unique().tolist()
+        if os.path.exists(args.sqlite):
+            from_sqlite(generate=False)
+        
+        # initialize dataset
+        voc_data = VOCDataset(args.data_dir, caption_support=True)
+        unique_captions = list(
+            set(list(map(lambda c: DatasetWrap.clean(c.captions), voc_data.train.caption.fetch(bulk=False)))))
         # add additional captions
         unique_captions.extend(list(map(DatasetWrap.clean, additional_captions)))
         unique_captions = list(filter(lambda txt: not emb_db.is_available(txt), unique_captions))
@@ -132,6 +137,13 @@ def create_openai_embedding_database():
             except RateLimitError:
                 cred_man.set_limit_exhausted(nickname)
                 key, nickname = next(cm)
+    
+    # For generating dataset
+    if generate:
+        Dataset.IMAGE_DIR = "JPEGImages"
+        Dataset.CAPTION_DIR = "captions"
+        # generate dataset
+        generate_dataset(args)
 
 
 def generate_caption_embedding_with_openai():
@@ -161,7 +173,7 @@ def from_custom_dataset():
     generate_dataset(args)
 
 
-def from_sqlite():
+def from_sqlite(generate=True):
     args = parse_args()
     dataset = pathlib.Path(args.dataroot)
     # For reading images
@@ -172,17 +184,19 @@ def from_sqlite():
     # generating dataset form SQLIte
     sqlite_data = SQLiteDataWrap(args.sqlite)
     sqlite_data.export_fast(args.data_dir, clean=args.clean, copy_images=args.copy_images, image_paths=file_paths)
-    # For generating dataset
-    Dataset.IMAGE_DIR = "JPEGImages"
-    Dataset.CAPTION_DIR = "texts"
-    # generate dataset
-    generate_dataset(args)
+    
+    if generate:
+        # For generating dataset
+        Dataset.IMAGE_DIR = "JPEGImages"
+        Dataset.CAPTION_DIR = "texts"
+        # generate dataset
+        generate_dataset(args)
 
 
 if __name__ == '__main__':
-    create_openai_embedding_database()
-    from_sqlite()
     # from_custom_dataset()
+    create_openai_embedding_database(generate=True)
+    # from_sqlite()
 
 """ UBUNTU
 sqlite3 -header -csv "C:\\Users\\dndlssardar\\Downloads\\tip_gai_22052023_1743.db" "SELECT * FROM caption" > caption.csv

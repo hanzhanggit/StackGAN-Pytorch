@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import torch
 import torch.utils.data as data
 from PIL import Image
 import PIL
@@ -13,13 +14,12 @@ import random
 import numpy as np
 import pandas as pd
 
-from miscc.config import cfg
-
 
 class TextDataset(data.Dataset):
     def __init__(self, data_dir, split='train', embedding_type='cnn-rnn',
                  imsize=64, transform=None, target_transform=None):
-
+        
+        self.dtype = 'float32'
         self.transform = transform
         self.target_transform = target_transform
         self.imsize = imsize
@@ -30,12 +30,12 @@ class TextDataset(data.Dataset):
         else:
             self.bbox = None
         split_dir = os.path.join(data_dir, split)
-
+        
         self.filenames = self.load_filenames(split_dir)
         self.embeddings = self.load_embedding(split_dir, embedding_type)
         self.class_id = self.load_class_id(split_dir, len(self.filenames))
         # self.captions = self.load_all_captions()
-
+    
     def get_img(self, img_path, bbox):
         img = Image.open(img_path).convert('RGB')
         width, height = img.size
@@ -53,7 +53,7 @@ class TextDataset(data.Dataset):
         if self.transform is not None:
             img = self.transform(img)
         return img
-
+    
     def load_bbox(self):
         data_dir = self.data_dir
         bbox_path = os.path.join(data_dir, 'CUB_200_2011/bounding_boxes.txt')
@@ -72,12 +72,12 @@ class TextDataset(data.Dataset):
         for i in xrange(0, numImgs):
             # bbox = [x-left, y-top, width, height]
             bbox = df_bounding_boxes.iloc[i][1:].tolist()
-
+            
             key = filenames[i][:-4]
             filename_bbox[key] = bbox
         #
         return filename_bbox
-
+    
     def load_all_captions(self):
         caption_dict = {}
         for key in self.filenames:
@@ -85,7 +85,7 @@ class TextDataset(data.Dataset):
             captions = self.load_captions(caption_name)
             caption_dict[key] = captions
         return caption_dict
-
+    
     def load_captions(self, caption_name):
         cap_path = caption_name
         with open(cap_path, "r") as f:
@@ -93,7 +93,7 @@ class TextDataset(data.Dataset):
         captions = [cap.replace("\ufffd\ufffd", " ")
                     for cap in captions if len(cap) > 0]
         return captions
-
+    
     def load_embedding(self, data_dir, embedding_type):
         if embedding_type == 'cnn-rnn':
             embedding_filename = '/char-CNN-RNN-embeddings.pickle'
@@ -106,18 +106,19 @@ class TextDataset(data.Dataset):
             embedding_filename = embedding_type
         else:
             raise ValueError("No embedding files was found '{}'".format(embedding_type))
-
+        
         # > https://github.com/reedscot/icml2016
         # > https://github.com/reedscot/cvpr2016
         # > https://arxiv.org/pdf/1605.05395.pdf
-
+        
         with open(os.path.join(data_dir, embedding_filename), 'rb') as f:
             embeddings = pickle.load(f, encoding="bytes")
-            embeddings = np.array(embeddings)
+            embeddings = torch.tensor(embeddings)
             # embedding_shape = [embeddings.shape[-1]]
-            print('embeddings: ', embeddings.shape)
+            print('embeddings: ', embeddings.shape, "dtype:", embeddings.dtype)
+        self.dtype = embeddings.dtype
         return embeddings
-
+    
     def load_class_id(self, data_dir, total_num):
         path_ = os.path.join(data_dir, 'class_info.pickle')
         if os.path.isfile(path_):
@@ -127,14 +128,14 @@ class TextDataset(data.Dataset):
             class_id = np.arange(total_num)
         print('Class_ids: ', class_id.shape, "Sample:", class_id[0])
         return class_id
-
+    
     def load_filenames(self, data_dir):
         filepath = os.path.join(data_dir, 'filenames.pickle')
         with open(filepath, 'rb') as f:
             filenames = pickle.load(f)
         print('Load filenames from: %s (%d)' % (filepath, len(filenames)), "sample:", filenames[0])
         return filenames
-
+    
     def __getitem__(self, index):
         filepath = self.filenames[index]
         # cls_id = self.class_id[index]
@@ -144,18 +145,18 @@ class TextDataset(data.Dataset):
         else:
             bbox = None
             data_dir = self.data_dir
-
+        
         # captions = self.captions[filepath]
         embeddings = self.embeddings[index, :, :]
         img_name = os.path.join(data_dir, filepath)
         assert os.path.isfile(img_name), img_name
         img = self.get_img(img_name, bbox)
-
         embedding_ix = random.randint(0, embeddings.shape[0] - 1)
         embedding = embeddings[embedding_ix, :]
         if self.target_transform is not None:
             embedding = self.target_transform(embedding)
+        img = img.type(self.dtype)  # change datatype
         return img, embedding
-
+    
     def __len__(self):
         return len(self.filenames)

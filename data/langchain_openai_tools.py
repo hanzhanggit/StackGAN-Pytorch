@@ -4,6 +4,9 @@ import pickle
 import time
 from datetime import datetime
 
+import numpy as np
+from numpy import ndarray
+
 from dataset_wrap import DatasetWrap
 
 
@@ -1411,16 +1414,18 @@ class OpenAITextEmbeddingDB:
 
 
 class OpenAIModelProxy:
-    def __init__(self, openai_emb_db):
+    def __init__(self, openai_emb_db, dtype="float64"):
         emb_db = OpenAITextEmbeddingDB(openai_emb_db)
         self.emb_dict = emb_db.to_dict()
         self.dim = emb_db.dim
+        self.dtype = dtype
     
     def get_word_vector(self, text):
         t = DatasetWrap.clean(text)
         v = self.emb_dict.get(t, None)
         if v is None:
             raise KeyError("Embedding value not found for '{}'".format(text))
+        v = np.array(v, dtype=self.dtype)
         return v
 
 

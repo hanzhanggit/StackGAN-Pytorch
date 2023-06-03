@@ -92,12 +92,12 @@ def _merge_a_into_b(a, b):
         dict_iter = a.items
     else:
         return
-
+    
     for k, v in dict_iter():
         # a must specify keys that are in b
         if (is_python_version(2) and not b.has_key(k)) or (is_python_version(3) and k not in b):
             raise KeyError('{} is not a valid config key'.format(k))
-
+        
         # the types must match, too
         old_type = type(b[k])
         if old_type is not type(v):
@@ -107,7 +107,7 @@ def _merge_a_into_b(a, b):
                 raise ValueError(('Type mismatch ({} vs. {}) '
                                   'for config key: {}').format(type(b[k]),
                                                                type(v), k))
-
+        
         # recursively merge dicts
         if type(v) is edict:
             try:
@@ -127,5 +127,5 @@ def cfg_from_file(filename):
             yaml_cfg = edict(yaml.load(f))
         elif is_python_version(3):
             yaml_cfg = edict(yaml.full_load(f))
-
+    
     _merge_a_into_b(yaml_cfg, __C)
