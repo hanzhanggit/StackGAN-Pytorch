@@ -56,10 +56,10 @@ class GANTrainer(object):
         from model import STAGE1_G, STAGE1_D
         netG = STAGE1_G()
         netG.apply(weights_init)
-        print(netG)
+        # print(netG)
         netD = STAGE1_D()
         netD.apply(weights_init)
-        print(netD)
+        # print(netD)
         if cfg.TRAIN.FINETUNE.FLAG:
             assert os.path.isfile(
                 cfg.TRAIN.FINETUNE.NET_G), "TRAIN.FINETUNE.NET_G is required when TRAIN.FINETUNE.FLAG=True"
@@ -87,8 +87,8 @@ class GANTrainer(object):
         netG.apply(weights_init)
         netD = STAGE2_D()
         netD.apply(weights_init)
-        print(netG)
-        print(netD)
+        # print(netG)
+        # print(netD)
         if cfg.TRAIN.FINETUNE.FLAG:
             assert os.path.isfile(
                 cfg.TRAIN.FINETUNE.NET_G), "TRAIN.FINETUNE.NET_G is required when TRAIN.FINETUNE.FLAG=True"
@@ -156,6 +156,7 @@ class GANTrainer(object):
             netG.double()
             netD.double()
         count = 0
+        print("Training...")
         for epoch in range(epoch_start, self.max_epoch):
             start_t = time.time()
             if epoch % lr_decay_step == 0 and epoch > 0:
@@ -167,7 +168,9 @@ class GANTrainer(object):
                     param_group['lr'] = discriminator_lr
             
             loop_ran = False
-            for i, data in enumerate(data_loader, 0):
+            for batch_idx, data in enumerate(data_loader, 0):
+                print("\rEpoch: {}/{} Batch: {} ".format(epoch + 1, self.max_epoch, batch_idx + 1),
+                      end="\b")
                 loop_ran = True
                 ######################################################
                 # (1) Prepare training data
@@ -210,14 +213,14 @@ class GANTrainer(object):
                 optimizerG.step()
                 
                 count = count + 1
-                if i % 100 == 0:
+                if batch_idx % 100 == 0:
                     self.summary_writer.add_scalar('D_loss', errD.data, count)
                     self.summary_writer.add_scalar('D_loss_real', errD_real, count)
                     self.summary_writer.add_scalar('D_loss_wrong', errD_wrong, count)
                     self.summary_writer.add_scalar('D_loss_fake', errD_fake, count)
                     self.summary_writer.add_scalar('G_loss', errG.data, count)
                     self.summary_writer.add_scalar('KL_loss', kl_loss.data, count)
-                if (epoch % self.snapshot_interval == 0 or epoch == self.max_epoch - 1) and i % 100 == 0:
+                if (epoch % self.snapshot_interval == 0 or epoch == self.max_epoch - 1) and batch_idx % 100 == 0:
                     # save the image result for each epoch
                     inputs = (txt_embedding, fixed_noise)
                     lr_fake, fake, _, _ = nn.parallel.data_parallel(netG, inputs, self.gpus)
@@ -234,11 +237,11 @@ class GANTrainer(object):
                     "(1) Reduce batch size to satisfy `Dataset() length` >= `batch-size`[recommended]\n"
                     "(2) Set `drop_last=False`[not recommended]")
             end_t = time.time()
-            print('''[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f Loss_KL: %.4f
+            print('''\n[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f Loss_KL: %.4f
                      Loss_real: %.4f Loss_wrong:%.4f Loss_fake %.4f
                      Total Time: %.2fsec
                   '''
-                  % (epoch, self.max_epoch, i, len(data_loader),
+                  % (epoch, self.max_epoch, batch_idx, len(data_loader),
                      errD.data.item(), errG.data.item(), kl_loss.data.item(),
                      errD_real, errD_wrong, errD_fake, (end_t - start_t)))
             if epoch % self.snapshot_interval == 0:

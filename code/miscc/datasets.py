@@ -113,7 +113,7 @@ class TextDataset(data.Dataset):
         
         with open(os.path.join(data_dir, embedding_filename), 'rb') as f:
             embeddings = pickle.load(f, encoding="bytes")
-            embeddings = torch.tensor(embeddings)
+            embeddings = torch.tensor(np.array(embeddings))
             # embedding_shape = [embeddings.shape[-1]]
             print('embeddings: ', embeddings.shape, "dtype:", embeddings.dtype)
         self.dtype = embeddings.dtype
