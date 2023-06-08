@@ -325,7 +325,6 @@ class GANTrainer(object):
             del logvar
             del batch_size
             del noise
-            del txt_embedding
             del embeddings_batch
             # Fix: https://discuss.pytorch.org/t/how-to-totally-free-allocate-memory-in-cuda/79590
             torch.cuda.empty_cache()

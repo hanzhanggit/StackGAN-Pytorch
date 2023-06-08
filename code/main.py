@@ -127,17 +127,21 @@ if __name__ == "__main__":
             # STAGE-1 TRAINING
             # prepare script for stage-2 training
             with open("train_stage2.sh", "w") as fp:
-                fp.write("python code/main.py --cfg {} --manualSeed 47 --STAGE1_G {}\n".format(
-                    args.cfg_file.replace("s1", "s2"),
-                    os.path.join(output_dir, "Model", "netG_epoch_{}.pth".format(cfg.TRAIN.MAX_EPOCH - 1))
-                ))
+                fp.write(
+                    "#!/usr/bin/bash\nsh code/miscc/cuda_mem.sh\n"
+                    "python code/main.py --cfg {} --manualSeed 47 --STAGE1_G {}\n".format(
+                        args.cfg_file.replace("s1", "s2"),
+                        os.path.join(output_dir, "Model", "netG_epoch_{}.pth".format(cfg.TRAIN.MAX_EPOCH - 1))
+                    ))
             # prepare script for stage-1 testing
             with open("test_stage1.sh", "w") as fp:
-                fp.write("python code/main.py --test_phase --manualSeed 47 --cfg {} --NET_G {} --NET_D {}\n".format(
-                    args.cfg_file,
-                    os.path.join(output_dir, "Model", "netG_epoch_{}.pth".format(cfg.TRAIN.MAX_EPOCH)),
-                    os.path.join(output_dir, "Model", "netD_epoch_last.pth"),
-                ))
+                fp.write(
+                    "#!/usr/bin/bash\nsh code/miscc/cuda_mem.sh\n"
+                    "python code/main.py --test_phase --manualSeed 47 --cfg {} --NET_G {} --NET_D {}\n".format(
+                        args.cfg_file,
+                        os.path.join(output_dir, "Model", "netG_epoch_{}.pth".format(cfg.TRAIN.MAX_EPOCH)),
+                        os.path.join(output_dir, "Model", "netD_epoch_last.pth"),
+                    ))
         else:
             # STAGE-1 TESTING
             ...
@@ -147,11 +151,13 @@ if __name__ == "__main__":
             # STAGE-2 TRAINING
             # prepare script for stage-2 testing
             with open("test_stage2.sh", "w") as fp:
-                fp.write("python code/main.py --test_phase --manualSeed 47 --cfg {} --NET_G {} --NET_D {}\n".format(
-                    args.cfg_file,
-                    os.path.join(output_dir, "Model", "netG_epoch_{}.pth".format(cfg.TRAIN.MAX_EPOCH)),
-                    os.path.join(output_dir, "Model", "netD_epoch_last.pth"),
-                ))
+                fp.write(
+                    "#!/usr/bin/bash\nsh code/miscc/cuda_mem.sh\n"
+                    "python code/main.py --test_phase --manualSeed 47 --cfg {} --NET_G {} --NET_D {}\n".format(
+                        args.cfg_file,
+                        os.path.join(output_dir, "Model", "netG_epoch_{}.pth".format(cfg.TRAIN.MAX_EPOCH)),
+                        os.path.join(output_dir, "Model", "netD_epoch_last.pth"),
+                    ))
         else:
             # STAGE-2 TESTING
             ...
