@@ -272,7 +272,7 @@ class GANTrainer(object):
             torch.cuda.empty_cache()
             gc.collect()
             print("memory_allocated(GB): ", torch.cuda.memory_allocated() / 1e-9)
-            print("memory_cached(GB): ", torch.cuda.memory_cached() / 1e-9)
+            print("memory_cached(GB): ", torch.cuda.memory_reserved() / 1e-9)
             # CLEAN GPU RAM ########################
         #
         save_model(netG, netD, self.max_epoch, self.model_dir)
