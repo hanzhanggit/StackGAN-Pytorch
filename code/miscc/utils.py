@@ -89,7 +89,7 @@ def weights_init(m):
 
 
 #############################
-def save_img_results(data_img, fake, epoch, image_dir):
+def save_img_results(data_img, fake, epoch, image_dir, name_prefix='fake'):
     num = cfg.VIS_COUNT
     fake = fake[0:num]
     # data_img is changed to [0,1]
@@ -100,12 +100,12 @@ def save_img_results(data_img, fake, epoch, image_dir):
             normalize=True)
         # fake.data is still [-1, 1]
         vutils.save_image(
-            fake.data, '%s/fake_samples_epoch_%03d.png' %
-                       (image_dir, epoch), normalize=True)
+            fake.data, '%s/%s_samples_epoch_%03d.png' %
+                       (image_dir, name_prefix, epoch), normalize=True)
     else:
         vutils.save_image(
-            fake.data, '%s/lr_fake_samples_epoch_%03d.png' %
-                       (image_dir, epoch), normalize=True)
+            fake.data, '%s/lr_%s_samples_epoch_%03d.png' %
+                       (image_dir, name_prefix, epoch), normalize=True)
 
 
 def save_model(netG, netD, epoch, model_dir):

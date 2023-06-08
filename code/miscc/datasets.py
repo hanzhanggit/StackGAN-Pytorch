@@ -20,6 +20,7 @@ class TextDataset(data.Dataset):
     def __init__(self, data_dir, split='train', embedding_type='cnn-rnn',
                  imsize=64, transform=None, target_transform=None, float_precision=32):
         assert float_precision in (32, 64), "Required 32 or 64 but {} is given".format(float_precision)
+        assert split in ('train', 'test'), "Required 'train' or 'test but {} is given".format(split)
         if float_precision == 32:
             self.dtype = torch.float32
         else:
@@ -35,11 +36,13 @@ class TextDataset(data.Dataset):
         else:
             self.bbox = None
         split_dir = os.path.join(data_dir, split)
+        self.split = split
         
-        self.filenames = self.load_filenames(split_dir)
         self.embeddings = self.load_embedding(split_dir, embedding_type)
-        self.class_id = self.load_class_id(split_dir, len(self.filenames))
         # self.captions = self.load_all_captions()
+        if split == "train":
+            self.filenames = self.load_filenames(split_dir)
+            self.class_id = self.load_class_id(split_dir, len(self.filenames))
     
     def get_img(self, img_path, bbox) -> torch.Tensor:
         img = Image.open(img_path).convert('RGB')
@@ -145,25 +148,28 @@ class TextDataset(data.Dataset):
         return filenames
     
     def __getitem__(self, index):
-        filepath = self.filenames[index]
-        # cls_id = self.class_id[index]
-        if self.bbox is not None:
-            bbox = self.bbox[filepath]
-            data_dir = '%s/CUB_200_2011' % self.data_dir
-        else:
-            bbox = None
-            data_dir = self.data_dir
-        
         # captions = self.captions[filepath]
         embeddings = self.embeddings[index, :, :]
-        img_name = os.path.join(data_dir, filepath)
-        assert os.path.isfile(img_name), img_name
-        img = self.get_img(img_name, bbox)
         embedding_ix = random.randint(0, embeddings.shape[0] - 1)
         embedding = embeddings[embedding_ix, :]
         if self.target_transform is not None:
             embedding = self.target_transform(embedding)
-        return img, embedding
+        if self.split == "train":
+            filepath = self.filenames[index]
+            # cls_id = self.class_id[index]
+            if self.bbox is not None:
+                bbox = self.bbox[filepath]
+                data_dir = '%s/CUB_200_2011' % self.data_dir
+            else:
+                bbox = None
+                data_dir = self.data_dir
+            
+            img_name = os.path.join(data_dir, filepath)
+            assert os.path.isfile(img_name), img_name
+            img = self.get_img(img_name, bbox)
+            return img, embedding
+        else:
+            return embedding
     
     def __len__(self):
         return len(self.filenames)

@@ -114,7 +114,7 @@ class GANTrainer(object):
             netD.cuda()
         return netG, netD
     
-    def train(self, data_loader, stage=1):
+    def train(self, data_loader, stage=1, test_dataset=None):
         if stage == 1:
             netG, netD = self.load_network_stageI()
         else:
@@ -228,6 +228,11 @@ class GANTrainer(object):
                     save_img_results(real_img_cpu, fake, epoch, self.image_dir)
                     if lr_fake is not None:
                         save_img_results(None, lr_fake, epoch, self.image_dir)
+                    ###########################
+                    # GENERATE TEST IMAGES
+                    ###########################
+                    self.test(netG, test_dataset.embeddings, self.image_dir, epoch)
+            
             if loop_ran is False:
                 raise Warning(
                     "Not enough data available.\n"
@@ -245,12 +250,11 @@ class GANTrainer(object):
                   % (epoch, self.max_epoch, batch_idx, len(data_loader),
                      errD.data.item(), errG.data.item(), kl_loss.data.item(),
                      errD_real, errD_wrong, errD_fake, (end_t - start_t)))
+            
             if epoch % self.snapshot_interval == 0:
                 save_model(netG, netD, epoch, self.model_dir)
             
             # CLEAN GPU RAM  ########################
-            # pprint(torch.cuda.memory_summary(device=None, abbreviated=False))
-            torch.cuda.empty_cache()
             del real_imgs
             del txt_embedding
             del inputs
@@ -264,7 +268,11 @@ class GANTrainer(object):
             del errD_fake
             del kl_loss
             del errG_total
+            # Fix: https://discuss.pytorch.org/t/how-to-totally-free-allocate-memory-in-cuda/79590
+            torch.cuda.empty_cache()
             gc.collect()
+            print("memory_allocated(GB): ", torch.cuda.memory_allocated() / 1e-9)
+            print("memory_cached(GB): ", torch.cuda.memory_cached() / 1e-9)
             # CLEAN GPU RAM ########################
         #
         save_model(netG, netD, self.max_epoch, self.model_dir)
@@ -272,31 +280,14 @@ class GANTrainer(object):
         self.summary_writer.flush()
         self.summary_writer.close()
     
-    def sample(self, datapath, output_dir, stage):
-        if stage == 1:
-            netG, _ = self.load_network_stageI()
-        elif stage == 2:
-            netG, _ = self.load_network_stageII()
-        else:
-            raise ValueError("Stage must me 1 or 2 but {} given".format(stage))
+    def test(self, netG, embeddings, output_dir, epoch):
         netG.eval()
-        
-        # Load text embeddings generated from the encoder
-        with open(datapath, 'rb') as f:
-            embeddings = pickle.load(f, encoding="bytes")
-            embeddings = np.array(embeddings)
-            # embedding_shape = [embeddings.shape[-1]]
-            print('test data embeddings: ', embeddings.shape)
-        # captions_list = t_file.raw_txt
-        # embeddings = np.concatenate(t_file.fea_txt, axis=0)
         num_embeddings = len(embeddings)
-        print('Successfully load sentences from: ', datapath)
         print('Total number of sentences:', num_embeddings)
         print('num_embeddings:', num_embeddings, embeddings.shape)
         # path to save generated samples
         save_dir = output_dir + "/generated"
         mkdir_p(save_dir)
-        
         batch_size = np.minimum(num_embeddings, self.batch_size)
         nz = cfg.Z_DIM
         noise = Variable(torch.FloatTensor(batch_size, nz))
@@ -324,14 +315,32 @@ class GANTrainer(object):
             assert len(txt_embedding.shape) == len(noise.shape) == 2, "2D tensors are expected, Got {} & {}".format(
                 txt_embedding.shape, noise.shape)
             _, fake_imgs, mu, logvar = nn.parallel.data_parallel(netG, inputs, self.gpus)
-            for i in range(batch_size):
-                save_name = '%s/%d.png' % (save_dir, count + i)
-                im = fake_imgs[i].data.cpu().numpy()
-                im = (im + 1.0) * 127.5
-                im = im.astype(np.uint8)
-                # print('im', im.shape)
-                im = np.transpose(im, (1, 2, 0))
-                # print('im', im.shape)
-                im = Image.fromarray(im)
-                im.save(save_name)
-            count += batch_size
+            save_img_results(None, fake_imgs, epoch, save_dir, name_prefix="test")
+            netG.train()
+            # for i in range(batch_size):
+            #     save_name = '%s/%d.png' % (save_dir, count + i)
+            #     im = fake_imgs[i].data.cpu().numpy()
+            #     im = (im + 1.0) * 127.5
+            #     im = im.astype(np.uint8)
+            #     # print('im', im.shape)
+            #     im = np.transpose(im, (1, 2, 0))
+            #     # print('im', im.shape)
+            #     im = Image.fromarray(im)
+            #     im.save(save_name)
+            #     count += batch_size
+    
+    def sample(self, datapath, output_dir, stage):
+        if stage == 1:
+            netG, _ = self.load_network_stageI()
+        elif stage == 2:
+            netG, _ = self.load_network_stageII()
+        else:
+            raise ValueError("Stage must me 1 or 2 but {} given".format(stage))
+        
+        # Load text embeddings generated from the encoder
+        with open(datapath, 'rb') as f:
+            embeddings = pickle.load(f, encoding="bytes")
+            embeddings = np.array(embeddings)
+            # embedding_shape = [embeddings.shape[-1]]
+            print('test data embeddings: ', embeddings.shape)
+            print('Successfully load sentences from: ', datapath)

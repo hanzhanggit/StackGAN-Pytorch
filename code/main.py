@@ -165,19 +165,25 @@ if __name__ == "__main__":
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
         # prepare Text caption
-        dataset = TextDataset(cfg.DATA_DIR, 'train',
-                              imsize=cfg.IMSIZE,
-                              embedding_type=cfg.EMBEDDING_TYPE,
-                              transform=image_transform,
-                              float_precision=32)
-        print("Dataset Length:", len(dataset))
-        assert dataset
-        dataloader = DataLoader(dataset=dataset, batch_size=cfg.TRAIN.BATCH_SIZE * num_gpu,
-                                drop_last=cfg.TRAIN.BATCH_DROP_LAST,
-                                shuffle=True, num_workers=int(cfg.WORKERS))
+        train_dataset = TextDataset(cfg.DATA_DIR, 'train',
+                                    imsize=cfg.IMSIZE,
+                                    embedding_type=cfg.EMBEDDING_TYPE,
+                                    transform=image_transform,
+                                    float_precision=32)
+        # prepare Text caption
+        test_dataset = TextDataset(cfg.DATA_DIR, 'test',
+                                   imsize=cfg.IMSIZE,
+                                   embedding_type=cfg.EMBEDDING_TYPE,
+                                   transform=image_transform,
+                                   float_precision=32)
+        print("Dataset Length:", len(train_dataset))
+        assert train_dataset
+        train_dataloader = DataLoader(dataset=train_dataset, batch_size=cfg.TRAIN.BATCH_SIZE * num_gpu,
+                                      drop_last=cfg.TRAIN.BATCH_DROP_LAST,
+                                      shuffle=True, num_workers=int(cfg.WORKERS))
         
         algo = GANTrainer(output_dir)
-        algo.train(dataloader, cfg.STAGE)
+        algo.train(train_dataloader, cfg.STAGE, test_dataset)
     else:
         datapath = os.path.join(cfg.DATA_DIR, "test", cfg.EMBEDDING_TYPE)
         if os.path.isfile(datapath):
