@@ -23,12 +23,12 @@ def makedirs(path):
 def copy():
     dataset = pathlib.Path(r"C:\Users\dndlssardar\OneDrive - Smiths Group\Documents\Projects\Dataset\Sixray_easy")
     destination = pathlib.Path(r"./sixray_500_GK")
-
+    
     makedirs(str(destination / "train" / "images"))
     makedirs(str(destination / "test" / "images"))
     makedirs(str(destination / "train" / "texts"))
     makedirs(str(destination / "test" / "texts"))
-
+    
     train_filenames = list(list_dir(str(dataset / "train"), dir_flag=VOC_IMAGES, fullpath=False))
     test_filenames = list(list_dir(str(dataset / "test"), dir_flag=VOC_IMAGES, fullpath=False))
     
@@ -71,11 +71,73 @@ def generate_excel_with_thumbnails(image_paths, save_path, file_names_to_highlig
         # Calculate the aspect ratio to maintain the original proportions
         aspect_ratio = img.width / img.height
         
+        # Calculate the corresponding height to maintain the aspect ratio
+        thumbnail_height = 100  # int(thumbnail_width / aspect_ratio)
+        
         # Set the desired width for the thumbnail (you can adjust this value)
-        thumbnail_width = 100
+        thumbnail_width = int(thumbnail_height * aspect_ratio)
+        
+        # Resize the image to the desired thumbnail size
+        img = img.resize((thumbnail_width, thumbnail_height), Resampling.LANCZOS)
+        
+        # Convert the PIL image to an openpyxl image
+        temp_path = "./temp_files/temp_" + os.path.basename(image_path)
+        img.save(temp_path)
+        img = Image(temp_path)
+        
+        # Add the thumbnail image and file name to the sheet
+        filename = os.path.basename(image_path)
+        sheet.add_image(img, f'A{i + 2}')
+        sheet[f'B{i + 2}'] = filename  # Extract the file name from the image path
+        if filename in file_names_to_highlight:
+            highlight_fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+            sheet[f'A{i + 2}'].fill = highlight_fill
+            sheet[f'B{i + 2}'].fill = highlight_fill
+            sheet[f'C{i + 2}'].fill = highlight_fill
+            sheet[f'C{i + 2}'] = 1
+        else:
+            sheet[f'C{i + 2}'] = 0
+        print(".", end="")
+    print("Saving into file...", end="")
+    # Save the workbook as an Excel file
+    workbook.save(save_path)
+    print("Cleaning...", end="")
+    shutil.rmtree("./temp_files", ignore_errors=True, onerror=lambda: print("Cleaning failed", end=""))
+    print("File Saved")
+
+
+def generate_excel_form_csv_with_thumbnails(image_paths, save_path, csv_path):
+    # Create a new workbook and get the active sheet
+    workbook = Workbook()
+    sheet = workbook.active
+    os.makedirs("./temp_files", exist_ok=True)
+    
+    with open(csv_path, "r") as fp:
+        csv.reader(fp)
+    
+    # Set the column widths to accommodate the thumbnails and file names
+    sheet.column_dimensions['A'].width = 20
+    sheet.column_dimensions['B'].width = 40
+    
+    # Set the headers for the columns
+    sheet['A1'] = 'Thumbnail'
+    sheet['B1'] = 'File Name'
+    sheet['C1'] = 'Is in 500 collection?'
+    sheet['D1'] = 'Map File Name'
+    
+    # Iterate through the image paths and insert thumbnails and file names into the sheet
+    for i, image_path in enumerate(image_paths):
+        # Open the image using PIL
+        img = PILImage.open(image_path)
+        
+        # Calculate the aspect ratio to maintain the original proportions
+        aspect_ratio = img.width / img.height
         
         # Calculate the corresponding height to maintain the aspect ratio
-        thumbnail_height = int(thumbnail_width / aspect_ratio)
+        thumbnail_height = 100  # int(thumbnail_width / aspect_ratio)
+        
+        # Set the desired width for the thumbnail (you can adjust this value)
+        thumbnail_width = int(thumbnail_height * aspect_ratio)
         
         # Resize the image to the desired thumbnail size
         img = img.resize((thumbnail_width, thumbnail_height), Resampling.LANCZOS)
@@ -169,7 +231,7 @@ def generate_excel_with_thumbnails_pil(image_paths, save_path, mark_file_list, c
 
 def main():
     dataset = pathlib.Path(r"C:\Users\dndlssardar\OneDrive - Smiths Group\Documents\Projects\Dataset\Sixray_easy")
-    destination = pathlib.Path(r"./dataset_500_to_2300_map.xlsx")
+    destination = pathlib.Path(r"./dataset_500_to_2300_map2.xlsx")
     
     train_filenames = list(list_dir(str(dataset / "train"), dir_flag=VOC_IMAGES, fullpath=False))
     test_filenames = list(list_dir(str(dataset / "test"), dir_flag=VOC_IMAGES, fullpath=False))
@@ -202,6 +264,7 @@ def main():
     
     # generate_excel_with_thumbnails_pil(image_paths, save_path, mark_file_list, dicta, dicta2)
     generate_excel_with_thumbnails(image_paths, save_path, file_names_to_highlight)
+    # generate_excel_form_csv_with_thumbnails(image_paths, save_path, "./dataset_500_to_2300_map_final.csv")
     print("Excel generated")
 
 

@@ -96,8 +96,8 @@ def create_openai_embedding_database(generate=False):
     # emb_db.query(DatasetWrap.clean("A quick brown fox jump over the lazy dog"))
     
     def caption_loader(additional_captions=()):
-        if os.path.exists(args.sqlite):
-            from_sqlite(generate=False)
+        # if os.path.exists(args.sqlite):
+        #     from_sqlite(generate=False)
         
         # initialize dataset
         voc_data = VOCDataset(args.data_dir, caption_support=True)
@@ -110,14 +110,19 @@ def create_openai_embedding_database(generate=False):
         Data.total_tokens = sum(map(lambda x: len(x), unique_captions))
         print("Unique captions cleaned:", Data.total_sentence)
         print("Total tokens:", Data.total_tokens)
+        return [[
+            "quick brown fox jump dog", "my name soumen sardar"
+        ]]
         return unique_captions
     
-    bulk_embedded = False
-    rpm = 3
     caption_loader = caption_loader(test_captions)
-    bulk_caption_loader = OpenAITextLoader(caption_loader, Data.total_tokens, Data.total_sentence,
-                                           rpm=rpm,
-                                           tpm=150000, auto_sleep=False)
+    bulk_embedded = True
+    # rpm = 3
+    # bulk_caption_loader = OpenAITextLoader(caption_loader, Data.total_tokens, Data.total_sentence,
+    #                                        rpm=rpm,
+    #                                        tpm=150000, auto_sleep=False)
+    # model = OpenAIEmbeddings(openai_api_key=key, model="ada", max_retries=1)
+    # embedding = model.embed_documents([""])
     cred_man = OpenAICredentialManager("./data/openai.apikey")
     cm = iter(cred_man)
     key, nickname = next(cm)
@@ -128,11 +133,16 @@ def create_openai_embedding_database(generate=False):
                 if cred_man.is_limit_exhausted(nickname):
                     raise RateLimitError("Rate limit exhausted for {}".format(nickname))
                 
-                # single
-                embedding = model.embed_query(caption)
-                emb_db.append(caption, embedding)
-                emb_db.commit()
-                # time.sleep(60 / rpm)
+                if bulk_embedded:
+                    embeddings = model.embed_documents(caption)
+                    print(caption, embeddings)
+                else:
+                    # single
+                    embedding = model.embed_query(caption)
+                    emb_db.append(caption, embedding)
+                    emb_db.commit()
+                    # time.sleep(60 / rpm)
+                
                 break
             except RateLimitError:
                 cred_man.set_limit_exhausted(nickname)

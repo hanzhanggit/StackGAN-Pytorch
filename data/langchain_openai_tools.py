@@ -1443,7 +1443,7 @@ class OpenAICredentialManager:
     This is useful, when users have a multiple OpenAI account to leverage the full potential of openai seamlessly.
 
     Save the file:
-    openapi-key.csv
+    openapi-key.apikey
         sk-x12x12x12x12xcc125221c223444XfYtyTYTgtYTYTyyTybb,user1
         sk-x12x12x12x12xcc125221c223444XfYtyTYTgtYTYTyyTybb,user2
 
