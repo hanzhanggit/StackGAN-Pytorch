@@ -316,6 +316,21 @@ class GANTrainer(object):
                 txt_embedding.shape, noise.shape)
             _, fake_imgs, mu, logvar = nn.parallel.data_parallel(netG, inputs, self.gpus)
             save_img_results(None, fake_imgs, epoch, save_dir, name_prefix="test")
+            # CLEAN GPU RAM  ########################
+            del txt_embedding
+            del inputs
+            del _
+            del fake_imgs
+            del mu
+            del logvar
+            del batch_size
+            del noise
+            del txt_embedding
+            del embeddings_batch
+            # Fix: https://discuss.pytorch.org/t/how-to-totally-free-allocate-memory-in-cuda/79590
+            torch.cuda.empty_cache()
+            gc.collect()
+            # CLEAN GPU RAM ########################
             netG.train()
             # for i in range(batch_size):
             #     save_name = '%s/%d.png' % (save_dir, count + i)
