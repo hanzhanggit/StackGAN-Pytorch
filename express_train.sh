@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 # REMOTE UBUNTU
 # sh express_train.sh data/sixray_500  /data/fasttext/cc.en.300.bin  /data/Sixray_easy  /data/sixray_caption_db/<tip_gai.db>
-# python data/generate_custom_dataset.py --data_dir data/sixray_500 --clean --copy_images --dataroot /data/Sixray_easy --fasttext_train_lr 0.05 --fasttext_train_algo skipgram --fasttext_train_epoch 50 --emb_dim 1000 --test_data_file data/sixray_500/test/test_captions.txt --sqlite /data/sixray_caption_db/tip_gai_2500.db
+# python data/generate_custom_dataset.py --data_dir data/sixray_2381 --clean --copy_images --dataroot /data/Sixray_easy --fasttext_train_lr 0.05 --fasttext_train_algo cbow --fasttext_train_epoch 50 --emb_dim 1024 --test_data_file data/sixray_500/test/test_captions.txt --sqlite /data/sixray_caption_db/tip_gai_11508.db
 # python data/generate_custom_dataset.py --data_dir data/sixray_500 --clean --copy_images --dataroot /data/Sixray_easy  --test_data_file data/sixray_500/test/test_captions.txt --sqlite /data/sixray_caption_db/tip_gai_2500.db --openai_emb_db /data/sixray_caption_db/openai_embedding.db
 
 # LOCAL UBUNTU
