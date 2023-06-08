@@ -1,10 +1,10 @@
 CONFIG_NAME: 'stage_1'
 
-DATASET_NAME: 'sixray_500_openai_1536D_nocrop'
-EMBEDDING_TYPE: 'embeddings_openai_1536D.pickle'
+DATASET_NAME: 'sixray_2381_ftt_1024D_cbow_nocrop'
+EMBEDDING_TYPE: 'embeddings_fasttext_cbow_1024_1024D.pickle'
 GPU_ID: '0,1'
 Z_DIM: 100
-DATA_DIR: 'data/sixray_500'
+DATA_DIR: 'data/sixray_2381'
 IMSIZE: 64
 WORKERS: 4
 STAGE: 1
@@ -31,4 +31,4 @@ GAN:
   GF_DIM: 192
 
 TEXT:
-  DIMENSION: 1536
+  DIMENSION: 1024
