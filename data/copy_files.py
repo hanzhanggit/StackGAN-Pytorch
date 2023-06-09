@@ -231,7 +231,7 @@ def generate_excel_with_thumbnails_pil(image_paths, save_path, mark_file_list, c
 
 def main():
     dataset = pathlib.Path(r"C:\Users\dndlssardar\OneDrive - Smiths Group\Documents\Projects\Dataset\Sixray_easy")
-    destination = pathlib.Path(r"./dataset_500_to_2300_map2.xlsx")
+    destination = pathlib.Path(r"archive/dataset_500_to_2300_map2.xlsx")
     
     train_filenames = list(list_dir(str(dataset / "train"), dir_flag=VOC_IMAGES, fullpath=False))
     test_filenames = list(list_dir(str(dataset / "test"), dir_flag=VOC_IMAGES, fullpath=False))
@@ -242,7 +242,7 @@ def main():
     # with open("dataset_easy_lookup-backup.csv", "r") as fp:
     #     dicta2 = {f: c for f, c in map(lambda x: x.strip().split(',')[1:], fp)}
     file_names_to_highlight = []
-    with open("data_images_2300.csv", "r") as fp:
+    with open("archive/data_images_2300.csv", "r") as fp:
         for line in csv.reader(fp):
             filename = line[0].strip()
             image_path = None
@@ -253,7 +253,7 @@ def main():
             
             if image_path:
                 image_paths.append(image_path)
-    with open("data_images_500.csv", "r") as fp:
+    with open("archive/data_images_500.csv", "r") as fp:
         for line in csv.reader(fp):
             filename = line[0].strip()
             file_names_to_highlight.append(os.path.basename(filename))

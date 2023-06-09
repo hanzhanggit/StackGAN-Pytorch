@@ -205,9 +205,9 @@ def from_sqlite(generate=True):
 
 
 if __name__ == '__main__':
-    # from_custom_dataset()
+    from_custom_dataset()
     # create_openai_embedding_database(generate=True)
-    from_sqlite()
+    # from_sqlite()
 
 """ UBUNTU
 sqlite3 -header -csv "C:\\Users\\dndlssardar\\Downloads\\tip_gai_22052023_1743.db" "SELECT * FROM caption" > caption.csv

@@ -216,7 +216,7 @@ class DatasetWrap:
             model = self.emb_model
         
         if self.is_bulk:
-            self.embeddings = [list(map(lambda cap: model.get_word_vector(cap.captions), caption_list)) for caption_list
+            self.embeddings = [list(map(lambda cap: model.get_word_vector(cap.captions), caption_list))[:4] for caption_list
                                in mydata.train.caption.fetch(bulk=True)]
         else:
             self.embeddings = [[model.get_word_vector(caption.captions)] for caption in
