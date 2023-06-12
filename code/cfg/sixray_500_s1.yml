@@ -18,7 +18,7 @@ TRAIN:
   DISCRIMINATOR_LR: 0.0004
   GENERATOR_LR: 0.0004
   COEFF:
-    KL: 1.0
+    KL: 2.0
   FINETUNE:
     FLAG: False
     EPOCH_START: 1001
@@ -26,9 +26,9 @@ TRAIN:
     NET_D: '/home/icmore_acc/Downloads/StackGAN-Pytorch/output/sixray_500_stage_1_2023_05_19_15_38_51/Model/netD_epoch_last.pth'
 
 GAN:
-  CONDITION_DIM: 256
-  DF_DIM: 192
-  GF_DIM: 384
+  CONDITION_DIM: 128
+  DF_DIM: 96
+  GF_DIM: 192
 
 TEXT:
   DIMENSION: 1024
