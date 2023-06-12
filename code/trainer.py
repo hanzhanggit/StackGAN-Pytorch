@@ -32,6 +32,7 @@ from tensorboardX import FileWriter
 
 class GANTrainer(object):
     def __init__(self, output_dir):
+        self.test_noise = None
         if cfg.TRAIN.FLAG:
             self.model_dir = os.path.join(output_dir, 'Model')
             self.image_dir = os.path.join(output_dir, 'Image')
@@ -122,6 +123,7 @@ class GANTrainer(object):
         
         nz = cfg.Z_DIM
         batch_size = self.batch_size
+        self.test_noise = None
         noise = Variable(torch.FloatTensor(batch_size, nz))
         with torch.no_grad():
             fixed_noise = Variable(torch.FloatTensor(batch_size, nz).normal_(0, 1))
@@ -290,7 +292,10 @@ class GANTrainer(object):
         mkdir_p(save_dir)
         batch_size = np.minimum(num_embeddings, self.batch_size)
         nz = cfg.Z_DIM
-        noise = Variable(torch.FloatTensor(batch_size, nz))
+        if self.test_noise is None:
+            self.test_noise = Variable(torch.FloatTensor(batch_size, nz))
+            self.test_noise.data.normal_(0, 1)
+        noise = self.test_noise
         if cfg.CUDA:
             noise = noise.cuda()
         count = 0
@@ -310,7 +315,6 @@ class GANTrainer(object):
             #######################################################
             # (2) Generate fake images
             ######################################################
-            noise.data.normal_(0, 1)
             inputs = (txt_embedding, noise)
             assert len(txt_embedding.shape) == len(noise.shape) == 2, "2D tensors are expected, Got {} & {}".format(
                 txt_embedding.shape, noise.shape)
@@ -335,7 +339,6 @@ class GANTrainer(object):
         del mu
         del logvar
         del batch_size
-        del noise
         del embeddings_batch
         # Fix: https://discuss.pytorch.org/t/how-to-totally-free-allocate-memory-in-cuda/79590
         torch.cuda.empty_cache()
