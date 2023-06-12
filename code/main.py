@@ -123,7 +123,6 @@ if __name__ == "__main__":
     timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
     output_dir = 'output/%s_%s_%s_%s' % (cfg.DATASET_NAME, cfg.CONFIG_NAME, phase, timestamp)
     print("Output:", output_dir)
-    shutil.copyfile(args.cfg_file, os.path.join(output_dir, os.path.basename(args.cfg_file)))
     if cfg.STAGE == 1:
         # STAGE-1
         if cfg.TRAIN.FLAG:
@@ -192,9 +191,11 @@ if __name__ == "__main__":
                                       shuffle=True, num_workers=int(cfg.WORKERS))
         
         algo = GANTrainer(output_dir)
+        shutil.copyfile(args.cfg_file, os.path.join(output_dir, os.path.basename(args.cfg_file)))
         algo.train(train_dataloader, cfg.STAGE, test_dataset)
     else:
         datapath = os.path.join(cfg.DATA_DIR, "test", cfg.EMBEDDING_TYPE)
         if os.path.isfile(datapath):
             algo = GANTrainer(output_dir)
+            shutil.copyfile(args.cfg_file, os.path.join(output_dir, os.path.basename(args.cfg_file)))
             algo.sample(datapath, output_dir, cfg.STAGE)
