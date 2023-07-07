@@ -1,8 +1,10 @@
 import argparse
 import os
 import pathlib
+import sqlite3
 from pprint import pprint
 
+import pandas as pd
 from tqdm import tqdm
 from voc_tools.constants import VOC_IMAGES
 from voc_tools.reader import list_dir
@@ -21,6 +23,7 @@ def parse_args():
                         default='', type=str, )
     parser.add_argument('--bulk', dest='bulk', default=False, action="store_true")
     parser.add_argument('--class_id', dest='class_id', default=False, action="store_true")
+    parser.add_argument('--map-file', dest='map_file', type=str, default='data/dataset_500_to_2300_map_final.csv')
     parser.add_argument('--fasttext_train_lr', dest='fasttext_train_lr', type=float, default=None)
     parser.add_argument('--fasttext_train_algo', dest='fasttext_train_algo', type=str, default=None,
                         choices=['skipgram', 'cbow'])
@@ -204,10 +207,36 @@ def from_sqlite(generate=True):
         generate_dataset(args)
 
 
+def create_class_labels():
+    args = parse_args()
+    dataset = pathlib.Path(args.data_dir)
+    save_dir = dataset / "train"
+    conn = sqlite3.connect(args.sqlite)
+    dataframe = pd.read_sql_query("SELECT file, gun, knife FROM image", conn)
+    mapdf = pd.read_csv(args.map_file)[['File Name', 'Map File Name']]
+    mapdf.columns = ['mapped_file', 'file']
+    mapdf = pd.merge(mapdf, dataframe, on="file", how="left")
+    mapdf = mapdf[["mapped_file", "gun", "knife"]]
+    
+    def labeler(rec):
+        if rec['gun']:
+            if rec['knife']:
+                return "gun-knife"
+            else:
+                return 'gun'
+        else:
+            return 'knife'
+    
+    with open(save_dir / "labels.csv", "w") as fp:
+        dataframe.apply(lambda x: fp.write("{},{}\n".format(x["file"], labeler(x))), axis=1)
+        mapdf.apply(lambda x: fp.write("{},{}\n".format(x["mapped_file"], labeler(x))), axis=1)
+
+
 if __name__ == '__main__':
-    from_custom_dataset()
+    # create_class_labels()
+    # from_custom_dataset()
     # create_openai_embedding_database(generate=True)
-    # from_sqlite()
+    from_sqlite()
 
 """ UBUNTU
 sqlite3 -header -csv "C:\\Users\\dndlssardar\\Downloads\\tip_gai_22052023_1743.db" "SELECT * FROM caption" > caption.csv
