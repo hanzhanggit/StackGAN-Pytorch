@@ -40,6 +40,7 @@ class GANTrainer(object):
             mkdir_p(self.model_dir)
             mkdir_p(self.image_dir)
             mkdir_p(self.log_dir)
+            print("Output:", output_dir)
             self.summary_writer = SummaryWriter(self.log_dir)
         
         self.max_epoch = cfg.TRAIN.MAX_EPOCH

@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import pathlib
 import shutil
 
 import PIL
@@ -15,6 +16,7 @@ import pprint
 import datetime
 import dateutil.tz
 from PIL.Image import Image
+from git import Repo
 from torch.utils.data import DataLoader
 from torchvision.transforms.transforms import _setup_size
 
@@ -95,10 +97,8 @@ class AspectResize(torch.nn.Module):
 
 if __name__ == "__main__":
     args = parse_args()
-    print(args)
     if args.cfg_file is not None:
         cfg_from_file(args.cfg_file)
-    print(cfg)
     if args.gpu_id != -1:
         cfg.GPU_ID = args.gpu_id
     if args.data_dir != '':
@@ -113,6 +113,12 @@ if __name__ == "__main__":
             cfg.TRAIN.FINETUNE.NET_D = args.NET_D
     print('Using config:')
     pprint.pprint(cfg)
+    pprint.pprint(args)
+    # save git checksum
+    project_root = pathlib.Path(__file__).parents[0]
+    repo = Repo(project_root)
+    args.git_checksum = repo.git.rev_parse("HEAD")  # save commit checksum
+    
     if args.manualSeed is None:
         args.manualSeed = random.randint(1, 10000)
     random.seed(args.manualSeed)
@@ -123,7 +129,7 @@ if __name__ == "__main__":
     now = datetime.datetime.now(dateutil.tz.tzlocal())
     timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
     output_dir = 'output/%s_%s_%s_%s' % (cfg.DATASET_NAME, cfg.CONFIG_NAME, phase, timestamp)
-    print("Output:", output_dir)
+    
     if cfg.STAGE == 1:
         # STAGE-1
         if cfg.TRAIN.FLAG:
@@ -193,6 +199,9 @@ if __name__ == "__main__":
         
         algo = GANTrainer(output_dir)
         shutil.copyfile(args.cfg_file, os.path.join(output_dir, os.path.basename(args.cfg_file)))
+        with open(os.path.join(output_dir, "config.txt"), "w") as fp:
+            fp.write("%s\n" % (str(args)))
+            fp.write("%s" % (str(cfg)))
         algo.train(train_dataloader, cfg.STAGE, test_dataset)
     else:
         datapath = os.path.join(cfg.DATA_DIR, "test", cfg.EMBEDDING_TYPE)
