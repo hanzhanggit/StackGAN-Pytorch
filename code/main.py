@@ -115,7 +115,7 @@ if __name__ == "__main__":
     pprint.pprint(cfg)
     pprint.pprint(args)
     # save git checksum
-    project_root = pathlib.Path(__file__).parents[0]
+    project_root = pathlib.Path(__file__).parents[1]
     repo = Repo(project_root)
     args.git_checksum = repo.git.rev_parse("HEAD")  # save commit checksum
     
