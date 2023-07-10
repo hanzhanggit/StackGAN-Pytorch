@@ -1,7 +1,7 @@
 CONFIG_NAME: 'stage_2'
 
 DATASET_NAME: 'sixray_2381_charcnnrnn_1536_jemb'
-EMBEDDING_TYPE: 'embedding_bulk_char_1536_jemb.pickle'
+EMBEDDING_TYPE: 'embedding_bulk_word_1536_jemb.pickle'
 GPU_ID: '0,1'
 Z_DIM: 200
 DATA_DIR: 'data/sixray_2381'
