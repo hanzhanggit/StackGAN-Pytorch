@@ -4,3 +4,8 @@ code/miscc/*.pyc
 backup
 .DS_Store
 .idea/
+/.ipynb_checkpoints/
+__pycache__
+/test_stage1.sh
+/test_stage2.sh
+/train_stage2.sh

@@ -1,0 +1,7 @@
+May-25
+[+] Share image with - Tejas
+[*] Generate data for testing and test it
+[ ] Image superresolution with S1 images
+[ ] Run training with fasttext self-trained + latest captions
+[ ] VQGAN
+[ ] CLIP
